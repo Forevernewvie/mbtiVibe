@@ -1,26 +1,49 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --cream: #faf7f0;
+  --ink: #0f172a;
+  --warm: #f59e0b;
+  --mint: #10b981;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-cream: var(--cream);
+  --color-ink: var(--ink);
+  --color-warm: var(--warm);
+  --color-mint: var(--mint);
+  --font-sans: var(--font-space-grotesk);
+  --font-serif: var(--font-spectral);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  box-sizing: border-box;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 10% 5%, rgba(245, 158, 11, 0.15), transparent 25%),
+    radial-gradient(circle at 90% 20%, rgba(16, 185, 129, 0.13), transparent 26%),
+    linear-gradient(180deg, #faf7f0 0%, #fff 45%, #f8fafc 100%);
+  color: var(--ink);
+  font-family: var(--font-space-grotesk), sans-serif;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-spectral), serif;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.stat-card {
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(6px);
 }
