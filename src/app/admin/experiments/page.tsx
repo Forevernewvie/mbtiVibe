@@ -3,6 +3,14 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
+type ExperimentSummary = {
+  id: string;
+  key: string;
+  name: string;
+  variants: string[];
+  isActive: boolean;
+};
+
 /**
  * Displays experiment management UI for administrators.
  */
@@ -30,7 +38,7 @@ export default async function ExperimentsAdminPage() {
           {experiments.length === 0 ? (
             <p className="text-slate-600">등록된 실험이 없습니다.</p>
           ) : (
-            experiments.map((experiment) => (
+            experiments.map((experiment: ExperimentSummary) => (
               <article key={experiment.id} className="rounded-xl border border-slate-200 p-3">
                 <p className="font-semibold text-slate-900">
                   {experiment.key} · {experiment.name}
