@@ -18,6 +18,8 @@
     "db:seed": "tsx prisma/seed.ts",
     "ops:verify:vercel-protection": "tsx scripts/verify-vercel-protection.ts",
     "ops:verify:security-rotation": "tsx scripts/security-rotation-checklist.ts",
+    "ops:verify:vercel-env-sync": "tsx scripts/verify-vercel-env-sync.ts",
+    "ops:report:security-rotation": "tsx scripts/generate-security-rotation-report.ts",
     "ops:run:recursive-cycle": "tsx scripts/run-recursive-cycle.ts"
   },
   "dependencies": {

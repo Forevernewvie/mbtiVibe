@@ -1,0 +1,65 @@
+name: Ops Guardrails
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - "codex/**"
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ALIAS_URL: ${{ secrets.VERCEL_ALIAS_URL }}
+      VERCEL_ACCESS_POLICY: ${{ secrets.VERCEL_ACCESS_POLICY }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      ADMIN_API_TOKEN: ${{ secrets.ADMIN_API_TOKEN }}
+      VERCEL_TOKEN_ROTATED: ${{ secrets.VERCEL_TOKEN_ROTATED }}
+      DB_PASSWORD_ROTATED: ${{ secrets.DB_PASSWORD_ROTATED }}
+      SECURITY_ROTATION_COMPLETED_AT: ${{ secrets.SECURITY_ROTATION_COMPLETED_AT }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run Unit Tests
+        run: npm test
+
+      - name: Run Typecheck
+        run: npm run typecheck
+
+      - name: Run Build
+        run: npm run build
+
+      - name: Verify Vercel Access Policy
+        if: ${{ env.VERCEL_TOKEN != '' && env.VERCEL_ALIAS_URL != '' }}
+        run: npm run ops:verify:vercel-protection
+
+      - name: Verify Security Rotation
+        if: ${{ env.VERCEL_TOKEN != '' && env.DATABASE_URL != '' && env.ADMIN_API_TOKEN != '' && env.SECURITY_ROTATION_COMPLETED_AT != '' }}
+        run: npm run ops:verify:security-rotation
+
+      - name: Verify Vercel Environment Sync
+        if: ${{ env.VERCEL_TOKEN != '' }}
+        run: npm run ops:verify:vercel-env-sync
+
+      - name: Generate Security Rotation Report
+        if: ${{ env.VERCEL_TOKEN != '' }}
+        run: npm run ops:report:security-rotation
+
+      - name: Upload Reports
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ops-reports
+          path: reports/
