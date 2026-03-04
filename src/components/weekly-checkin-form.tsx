@@ -68,7 +68,7 @@ export function WeeklyCheckinForm({ assessmentId }: Props) {
             value={note}
             onChange={(event) => setNote(event.target.value)}
             rows={4}
-            className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-slate-500"
+            className="field-control"
             placeholder="막힌 지점, 다음 주 실험 아이디어를 기록하세요."
           />
         </label>
@@ -76,7 +76,7 @@ export function WeeklyCheckinForm({ assessmentId }: Props) {
         <button
           type="submit"
           disabled={loading}
-          className="rounded-full bg-slate-900 px-5 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+          className="btn btn-primary"
         >
           {loading ? "저장 중..." : "체크인 저장"}
         </button>

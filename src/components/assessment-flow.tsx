@@ -185,7 +185,7 @@ export function AssessmentFlow() {
             type="button"
             disabled={submitting}
             onClick={() => onSelectChoice(activeQuestion.id, choice.id)}
-            className="rounded-2xl border border-slate-200 px-4 py-3 text-left text-sm font-medium text-slate-700 transition hover:border-slate-800 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+            className="choice-button"
           >
             {choice.label}
           </button>

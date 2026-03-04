@@ -116,10 +116,7 @@ export default async function ResultPage({
 
         <div className="mt-5">
           {paid ? (
-            <Link
-              href={`/api/report/${assessment.id}`}
-              className="inline-flex items-center rounded-full bg-white px-6 py-3 text-sm font-semibold text-slate-900"
-            >
+            <Link href={`/api/report/${assessment.id}`} className="btn btn-contrast">
               PDF 다운로드
             </Link>
           ) : (

@@ -51,7 +51,7 @@ export function PurchaseReportButton({
         type="button"
         onClick={onClick}
         disabled={loading}
-        className="inline-flex items-center rounded-full bg-slate-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+        className="btn btn-primary"
       >
         {loading ? "결제 연결 중..." : `상세 리포트 구매 (${formatKrw(APP_POLICY.pricing.report.amount)})`}
       </button>

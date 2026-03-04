@@ -39,16 +39,10 @@ export default function HomePage() {
             지금 시작하면 오늘 안에 MVP 랜딩과 결제 플로우를 운영할 수 있습니다.
           </p>
           <div className="flex flex-wrap items-center gap-3">
-            <Link
-              href="/assessment"
-              className="rounded-full bg-slate-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-700"
-            >
+            <Link href="/assessment" className="btn btn-primary">
               무료 진단 시작
             </Link>
-            <Link
-              href="/dashboard"
-              className="rounded-full border border-slate-300 px-6 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-900 hover:text-slate-900"
-            >
+            <Link href="/dashboard" className="btn btn-secondary">
               내 대시보드 보기
             </Link>
           </div>

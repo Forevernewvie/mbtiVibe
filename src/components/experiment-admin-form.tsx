@@ -75,7 +75,7 @@ export function ExperimentAdminForm({ defaultToken = "" }: Props) {
         value={token}
         onChange={(event) => setToken(event.target.value)}
         placeholder="Admin token"
-        className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+        className="field-control"
       />
 
       <input
@@ -84,7 +84,7 @@ export function ExperimentAdminForm({ defaultToken = "" }: Props) {
         onChange={(event) => setKey(event.target.value)}
         placeholder="실험 키 (예: checkout_gate_position)"
         required
-        className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+        className="field-control"
       />
 
       <input
@@ -93,7 +93,7 @@ export function ExperimentAdminForm({ defaultToken = "" }: Props) {
         onChange={(event) => setName(event.target.value)}
         placeholder="실험 이름"
         required
-        className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+        className="field-control"
       />
 
       <textarea
@@ -101,7 +101,7 @@ export function ExperimentAdminForm({ defaultToken = "" }: Props) {
         onChange={(event) => setDescription(event.target.value)}
         placeholder="설명"
         rows={3}
-        className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+        className="field-control"
       />
 
       <input
@@ -110,7 +110,7 @@ export function ExperimentAdminForm({ defaultToken = "" }: Props) {
         onChange={(event) => setVariants(event.target.value)}
         placeholder="variant1,variant2,variant3"
         required
-        className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+        className="field-control"
       />
 
       <label className="inline-flex items-center gap-2 text-sm text-slate-700">
@@ -121,7 +121,7 @@ export function ExperimentAdminForm({ defaultToken = "" }: Props) {
       <button
         type="submit"
         disabled={loading}
-        className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+        className="btn btn-primary"
       >
         {loading ? "저장 중..." : "실험 저장"}
       </button>
