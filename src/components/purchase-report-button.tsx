@@ -55,7 +55,11 @@ export function PurchaseReportButton({
       >
         {loading ? "결제 연결 중..." : `상세 리포트 구매 (${formatKrw(APP_POLICY.pricing.report.amount)})`}
       </button>
-      {error ? <p className="text-sm text-rose-600">{error}</p> : null}
+      {error ? (
+        <p className="text-sm text-rose-600" aria-live="assertive" role="alert">
+          {error}
+        </p>
+      ) : null}
     </div>
   );
 }
