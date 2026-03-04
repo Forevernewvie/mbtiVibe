@@ -11,8 +11,8 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     env:
-      CI_FALLBACK_DATABASE_URL: postgresql://ci_user:ci_pass@localhost:5432/ci_db?schema=public
-      CI_FALLBACK_APP_URL: https://example.com
+      DATABASE_URL: postgresql://ci_user:ci_pass@localhost:5432/ci_db?schema=public
+      APP_URL: https://example.com
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -33,9 +33,6 @@ jobs:
         run: npm run typecheck
 
       - name: Run Build
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL != '' && secrets.DATABASE_URL || env.CI_FALLBACK_DATABASE_URL }}
-          APP_URL: ${{ secrets.APP_URL != '' && secrets.APP_URL || env.CI_FALLBACK_APP_URL }}
         run: npm run build
 
       - name: Verify Vercel Access Policy
