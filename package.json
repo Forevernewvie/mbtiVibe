@@ -16,7 +16,9 @@
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
-    "ops:verify:vercel-protection": "tsx scripts/verify-vercel-protection.ts"
+    "ops:verify:vercel-protection": "tsx scripts/verify-vercel-protection.ts",
+    "ops:verify:security-rotation": "tsx scripts/security-rotation-checklist.ts",
+    "ops:run:recursive-cycle": "tsx scripts/run-recursive-cycle.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.4.2",
