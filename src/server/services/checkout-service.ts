@@ -1,4 +1,11 @@
-import { BillingPeriod, PaymentProvider, PaymentStatus, PrismaClient, SubscriptionStatus } from "@prisma/client";
+import {
+  BillingPeriod,
+  PaymentProvider,
+  PaymentStatus,
+  Prisma,
+  PrismaClient,
+  SubscriptionStatus,
+} from "@prisma/client";
 
 import { APP_POLICY } from "@/config/app-policy";
 import { BadRequestError, NotFoundError } from "@/lib/errors";
@@ -13,6 +20,8 @@ type CheckoutServiceDependencies = {
   logger: Logger;
   now?: () => Date;
 };
+
+type UserDelegate = Pick<Prisma.TransactionClient["user"], "findUnique" | "create">;
 
 export type CreateCheckoutInput = {
   assessmentId: string;
@@ -73,52 +82,56 @@ export class CheckoutService {
       cancelUrl: resultPage,
     });
 
-    const payment = await this.prismaClient.payment.create({
-      data: {
-        assessmentId: input.assessmentId,
-        priceId: price.id,
-        provider,
-        status: PaymentStatus.PENDING,
-        amount: price.amount,
-        currency: price.currency,
-        externalId: checkout.externalId,
-        metadata: {
-          assessmentId: input.assessmentId,
-          priceCode: input.priceCode,
-        },
-      },
-    });
-
     const isManual = provider === PaymentProvider.MANUAL;
+    const checkoutCreatedAt = this.now();
 
-    if (isManual) {
-      await this.prismaClient.payment.update({
-        where: { id: payment.id },
+    await this.prismaClient.$transaction(async (tx) => {
+      const payment = await tx.payment.create({
         data: {
-          status: PaymentStatus.PAID,
-          paidAt: this.now(),
-        },
-      });
-    }
-
-    if (isManual && price.billingPeriod !== BillingPeriod.ONE_TIME) {
-      const demoUser = assessment.userId
-        ? { id: assessment.userId }
-        : await this.ensureDemoUser(input.email);
-
-      await this.prismaClient.subscription.create({
-        data: {
-          userId: demoUser.id,
+          assessmentId: input.assessmentId,
           priceId: price.id,
           provider,
-          status: SubscriptionStatus.ACTIVE,
-          externalId: `${checkout.externalId}_sub`,
-          currentPeriodEnd: new Date(
-            this.now().getTime() + APP_POLICY.checkout.demoSubscriptionDays * APP_POLICY.time.dayMs,
-          ),
+          status: PaymentStatus.PENDING,
+          amount: price.amount,
+          currency: price.currency,
+          externalId: checkout.externalId,
+          metadata: {
+            assessmentId: input.assessmentId,
+            priceCode: input.priceCode,
+          },
         },
       });
-    }
+
+      if (isManual) {
+        await tx.payment.update({
+          where: { id: payment.id },
+          data: {
+            status: PaymentStatus.PAID,
+            paidAt: checkoutCreatedAt,
+          },
+        });
+      }
+
+      if (isManual && price.billingPeriod !== BillingPeriod.ONE_TIME) {
+        const demoUser = assessment.userId
+          ? { id: assessment.userId }
+          : await this.ensureDemoUser(tx.user, checkoutCreatedAt, input.email);
+
+        await tx.subscription.create({
+          data: {
+            userId: demoUser.id,
+            priceId: price.id,
+            provider,
+            status: SubscriptionStatus.ACTIVE,
+            externalId: `${checkout.externalId}_sub`,
+            currentPeriodEnd: new Date(
+              checkoutCreatedAt.getTime() +
+                APP_POLICY.checkout.demoSubscriptionDays * APP_POLICY.time.dayMs,
+            ),
+          },
+        });
+      }
+    });
 
     await this.tracker.track({
       name: "checkout_created",
@@ -151,10 +164,10 @@ export class CheckoutService {
   /**
    * Creates a deterministic demo user for manual checkout fallback.
    */
-  private async ensureDemoUser(email?: string) {
-    const fallbackEmail = email ?? `demo-${this.now().getTime()}@example.com`;
+  private async ensureDemoUser(userDelegate: UserDelegate, now: Date, email?: string) {
+    const fallbackEmail = email ?? `demo-${now.getTime()}@example.com`;
 
-    const existing = await this.prismaClient.user.findUnique({
+    const existing = await userDelegate.findUnique({
       where: { email: fallbackEmail },
       select: { id: true },
     });
@@ -163,14 +176,29 @@ export class CheckoutService {
       return existing;
     }
 
-    return this.prismaClient.user.create({
-      data: {
-        email: fallbackEmail,
-        name: APP_POLICY.checkout.demoUserName,
-      },
-      select: {
-        id: true,
-      },
-    });
+    try {
+      return await userDelegate.create({
+        data: {
+          email: fallbackEmail,
+          name: APP_POLICY.checkout.demoUserName,
+        },
+        select: {
+          id: true,
+        },
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+        const conflicted = await userDelegate.findUnique({
+          where: { email: fallbackEmail },
+          select: { id: true },
+        });
+
+        if (conflicted) {
+          return conflicted;
+        }
+      }
+
+      throw error;
+    }
   }
 }

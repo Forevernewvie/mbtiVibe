@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "postinstall": "prisma generate",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
@@ -14,7 +15,12 @@
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
-    "db:seed": "tsx prisma/seed.ts"
+    "db:seed": "tsx prisma/seed.ts",
+    "ops:verify:vercel-protection": "tsx scripts/verify-vercel-protection.ts",
+    "ops:verify:security-rotation": "tsx scripts/security-rotation-checklist.ts",
+    "ops:verify:vercel-env-sync": "tsx scripts/verify-vercel-env-sync.ts",
+    "ops:report:security-rotation": "tsx scripts/generate-security-rotation-report.ts",
+    "ops:run:recursive-cycle": "tsx scripts/run-recursive-cycle.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.4.2",

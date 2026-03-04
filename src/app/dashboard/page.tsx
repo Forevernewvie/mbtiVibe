@@ -8,6 +8,22 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
+type DashboardPlan = {
+  id: string;
+  dayIndex: number;
+  title: string;
+  details: string;
+  completed: boolean;
+};
+
+type DashboardCheckin = {
+  id: string;
+  executionScore: number;
+  focusScore: number;
+  confidenceScore: number;
+  note: string | null;
+};
+
 /**
  * Shows personalized action dashboard for latest completed assessment.
  */
@@ -89,7 +105,7 @@ export default async function DashboardPage() {
       </section>
 
       <ActionPlanChecklist
-        plans={latestAssessment.actionPlans.map((plan) => ({
+        plans={latestAssessment.actionPlans.map((plan: DashboardPlan) => ({
           id: plan.id,
           dayIndex: plan.dayIndex,
           title: plan.title,
@@ -106,7 +122,7 @@ export default async function DashboardPage() {
           {latestAssessment.weeklyCheckins.length === 0 ? (
             <p>아직 체크인 기록이 없습니다.</p>
           ) : (
-            latestAssessment.weeklyCheckins.map((checkin) => (
+            latestAssessment.weeklyCheckins.map((checkin: DashboardCheckin) => (
               <div key={checkin.id} className="rounded-xl border border-slate-200 p-3">
                 <p>
                   실행 {checkin.executionScore} / 집중 {checkin.focusScore} / 자신감 {checkin.confidenceScore}

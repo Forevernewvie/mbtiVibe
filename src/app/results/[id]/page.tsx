@@ -13,6 +13,13 @@ type AxisScoreItem = {
   score: number;
 };
 
+type ResultActionPlan = {
+  id: string;
+  dayIndex: number;
+  title: string;
+  details: string;
+};
+
 /**
  * Renders assessment result summary and paid report CTA.
  */
@@ -77,11 +84,11 @@ export default async function ResultPage({
           <h2 className="text-lg font-semibold text-slate-900">강점/개선 포인트</h2>
           <div className="mt-3 grid gap-2 text-sm text-slate-700">
             <p className="font-semibold text-slate-900">강점</p>
-            {assessment.resultSnapshot.strengths.map((item) => (
+            {assessment.resultSnapshot.strengths.map((item: string) => (
               <p key={item}>- {item}</p>
             ))}
             <p className="mt-2 font-semibold text-slate-900">개선 포인트</p>
-            {assessment.resultSnapshot.blindSpots.map((item) => (
+            {assessment.resultSnapshot.blindSpots.map((item: string) => (
               <p key={item}>- {item}</p>
             ))}
           </div>
@@ -91,7 +98,7 @@ export default async function ResultPage({
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold text-slate-900">7일 액션플랜</h2>
         <ol className="mt-3 space-y-2 text-sm text-slate-700">
-          {assessment.actionPlans.map((plan) => (
+          {assessment.actionPlans.map((plan: ResultActionPlan) => (
             <li key={plan.id}>
               <span className="font-semibold">Day {plan.dayIndex}. {plan.title}</span>
               <br />

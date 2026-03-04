@@ -5,6 +5,7 @@ import { AssessmentService } from "@/server/services/assessment-service";
 import { CheckoutService } from "@/server/services/checkout-service";
 import { eventTracker } from "@/server/services/event-tracker";
 import { ExperimentService } from "@/server/services/experiment-service";
+import { MetricsService } from "@/server/services/metrics-service";
 import { PaymentWebhookService } from "@/server/services/payment-webhook-service";
 import { ReportService } from "@/server/services/report-service";
 import { SupportService } from "@/server/services/support-service";
@@ -27,6 +28,9 @@ export const services = {
     prismaClient: prisma,
   }),
   experiment: new ExperimentService({
+    prismaClient: prisma,
+  }),
+  metrics: new MetricsService({
     prismaClient: prisma,
   }),
   actionPlan: new ActionPlanService({
