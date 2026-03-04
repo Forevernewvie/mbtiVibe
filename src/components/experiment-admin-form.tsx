@@ -126,8 +126,16 @@ export function ExperimentAdminForm({ defaultToken = "" }: Props) {
         {loading ? "저장 중..." : "실험 저장"}
       </button>
 
-      {message ? <p className="text-sm text-emerald-700">{message}</p> : null}
-      {error ? <p className="text-sm text-rose-600">{error}</p> : null}
+      {message ? (
+        <p className="text-sm text-emerald-700" aria-live="polite" role="status">
+          {message}
+        </p>
+      ) : null}
+      {error ? (
+        <p className="text-sm text-rose-600" aria-live="assertive" role="alert">
+          {error}
+        </p>
+      ) : null}
     </form>
   );
 }

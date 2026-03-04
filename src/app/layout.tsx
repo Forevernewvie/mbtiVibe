@@ -16,8 +16,27 @@ const spectral = Spectral({
   weight: ["400", "500", "600", "700"],
 });
 
+const FALLBACK_APP_URL = "https://mbti-vibe.vercel.app";
+
+/**
+ * Resolves metadata base URL from runtime env with safe fallback.
+ */
+function resolveMetadataBase(): URL {
+  const appUrl = process.env.APP_URL?.trim();
+
+  if (!appUrl) {
+    return new URL(FALLBACK_APP_URL);
+  }
+
+  try {
+    return new URL(appUrl);
+  } catch {
+    return new URL(FALLBACK_APP_URL);
+  }
+}
+
 export const metadata: Metadata = {
-  metadataBase: new URL("https://vibeweb.app"),
+  metadataBase: resolveMetadataBase(),
   title: "VibeWeb Growth Lab | 수익형 웹앱 진단",
   description:
     "수익형 웹앱 빌더를 위한 AI 커리어/수입 성장 진단. 5축 점수, 7일 액션플랜, 유료 상세 리포트를 제공합니다.",

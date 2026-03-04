@@ -89,8 +89,16 @@ export function ContactForm() {
         {loading ? "전송 중..." : "문의 보내기"}
       </button>
 
-      {result ? <p className="text-sm text-emerald-700">{result}</p> : null}
-      {error ? <p className="text-sm text-rose-600">{error}</p> : null}
+      {result ? (
+        <p className="text-sm text-emerald-700" aria-live="polite" role="status">
+          {result}
+        </p>
+      ) : null}
+      {error ? (
+        <p className="text-sm text-rose-600" aria-live="assertive" role="alert">
+          {error}
+        </p>
+      ) : null}
     </form>
   );
 }
