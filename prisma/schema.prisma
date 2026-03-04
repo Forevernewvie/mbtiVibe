@@ -1,0 +1,324 @@
+generator client {
+  provider = "prisma-client-js"
+  engineType = "binary"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum AssessmentStatus {
+  IN_PROGRESS
+  COMPLETED
+  ABANDONED
+}
+
+enum Axis {
+  ACTION
+  RISK
+  LEARNING
+  COLLABORATION
+  MARKET
+}
+
+enum PaymentProvider {
+  STRIPE
+  TOSS
+  PORTONE
+  MANUAL
+}
+
+enum BillingPeriod {
+  ONE_TIME
+  MONTHLY
+  YEARLY
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  EXPIRED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+model User {
+  id                    String                 @id @default(cuid())
+  email                 String                 @unique
+  name                  String?
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  profile               Profile?
+  assessments           Assessment[]
+  subscriptions         Subscription[]
+  payments              Payment[]
+  events                Event[]
+  experimentAssignments ExperimentAssignment[]
+  supportTickets        SupportTicket[]
+  weeklyCheckins        WeeklyCheckin[]
+}
+
+model Profile {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  currentRole    String?
+  targetIncome   Int?
+  yearsExperience Int?
+  personaNote    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Assessment {
+  id            String           @id @default(cuid())
+  userId        String?
+  sessionToken  String           @unique
+  status        AssessmentStatus @default(IN_PROGRESS)
+  locale        String           @default("ko-KR")
+  currentQuestion Int            @default(0)
+  startedAt     DateTime         @default(now())
+  completedAt   DateTime?
+  user          User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
+  responses     Response[]
+  resultSnapshot ResultSnapshot?
+  actionPlans   ActionPlan[]
+  payments      Payment[]
+  weeklyCheckins WeeklyCheckin[]
+
+  @@index([sessionToken, status])
+}
+
+model Question {
+  id        String   @id @default(cuid())
+  order     Int      @unique
+  prompt    String
+  axis      Axis
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  choices   Choice[]
+  responses Response[]
+
+  @@index([isActive, order])
+}
+
+model Choice {
+  id         String   @id @default(cuid())
+  questionId String
+  label      String
+  value      Int
+  createdAt  DateTime @default(now())
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  responses  Response[]
+
+  @@unique([questionId, value])
+}
+
+model Response {
+  id           String     @id @default(cuid())
+  assessmentId String
+  questionId   String
+  choiceId     String
+  answeredAt   DateTime   @default(now())
+  assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  question     Question   @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  choice       Choice     @relation(fields: [choiceId], references: [id], onDelete: Cascade)
+
+  @@unique([assessmentId, questionId])
+  @@index([assessmentId, answeredAt])
+}
+
+model ResultSnapshot {
+  id              String     @id @default(cuid())
+  assessmentId    String     @unique
+  archetype       String
+  summary         String
+  strengths       String[]
+  blindSpots      String[]
+  axisScores      Json
+  recommendedNext Json
+  createdAt       DateTime   @default(now())
+  assessment      Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+}
+
+model ActionPlan {
+  id            String     @id @default(cuid())
+  assessmentId  String
+  userId        String?
+  dayIndex      Int
+  title         String
+  details       String
+  completed     Boolean    @default(false)
+  completedAt   DateTime?
+  dueDate       DateTime?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  assessment    Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+
+  @@unique([assessmentId, dayIndex])
+  @@index([assessmentId, completed])
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  prices      Price[]
+}
+
+model Price {
+  id            String          @id @default(cuid())
+  code          String          @unique
+  productId     String
+  provider      PaymentProvider
+  amount        Int
+  currency      String          @default("KRW")
+  billingPeriod BillingPeriod
+  externalId    String?         @unique
+  isActive      Boolean         @default(true)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  product       Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  subscriptions Subscription[]
+  payments      Payment[]
+
+  @@index([provider, isActive])
+}
+
+model Subscription {
+  id               String             @id @default(cuid())
+  userId           String
+  priceId          String
+  provider         PaymentProvider
+  status           SubscriptionStatus @default(TRIALING)
+  externalId       String?            @unique
+  currentPeriodEnd DateTime?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  price            Price              @relation(fields: [priceId], references: [id], onDelete: Restrict)
+
+  @@index([userId, status])
+}
+
+model Payment {
+  id           String          @id @default(cuid())
+  userId       String?
+  assessmentId String?
+  priceId      String
+  provider     PaymentProvider
+  status       PaymentStatus   @default(PENDING)
+  amount       Int
+  currency     String          @default("KRW")
+  externalId   String?         @unique
+  paidAt       DateTime?
+  metadata     Json?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  user         User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+  assessment   Assessment?     @relation(fields: [assessmentId], references: [id], onDelete: SetNull)
+  price        Price           @relation(fields: [priceId], references: [id], onDelete: Restrict)
+
+  @@index([assessmentId, status])
+  @@index([provider, status])
+}
+
+model Coupon {
+  id             String   @id @default(cuid())
+  code           String   @unique
+  percentOff     Int?
+  amountOff      Int?
+  maxRedemptions Int?
+  redeemedCount  Int      @default(0)
+  expiresAt      DateTime?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model Event {
+  id           String   @id @default(cuid())
+  userId       String?
+  name         String
+  sessionToken String?
+  properties   Json?
+  createdAt    DateTime @default(now())
+  user         User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([name, createdAt])
+  @@index([sessionToken, createdAt])
+}
+
+model Experiment {
+  id          String                 @id @default(cuid())
+  key         String                 @unique
+  name        String
+  description String?
+  variants    String[]
+  isActive    Boolean                @default(true)
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+  assignments ExperimentAssignment[]
+}
+
+model ExperimentAssignment {
+  id           String      @id @default(cuid())
+  experimentId String
+  userId       String?
+  sessionToken String?
+  variant      String
+  assignedAt   DateTime    @default(now())
+  experiment   Experiment  @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+  user         User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([experimentId, variant])
+  @@index([sessionToken, experimentId])
+}
+
+model SupportTicket {
+  id        String     @id @default(cuid())
+  userId    String?
+  email     String
+  subject   String
+  message   String
+  status    TicketStatus @default(OPEN)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  user      User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+}
+
+model WeeklyCheckin {
+  id            String     @id @default(cuid())
+  assessmentId  String
+  userId        String?
+  executionScore Int
+  focusScore    Int
+  confidenceScore Int
+  note          String?
+  createdAt     DateTime   @default(now())
+  assessment    Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  user          User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([assessmentId, createdAt])
+}
