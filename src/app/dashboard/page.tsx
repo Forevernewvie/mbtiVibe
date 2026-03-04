@@ -36,10 +36,7 @@ export default async function DashboardPage() {
         <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
           <h1 className="text-2xl font-semibold text-slate-900">대시보드 데이터가 없습니다</h1>
           <p className="mt-2 text-sm text-slate-600">먼저 진단을 시작하면 결과와 액션플랜이 생성됩니다.</p>
-          <Link
-            href="/assessment"
-            className="mt-5 inline-flex rounded-full bg-slate-900 px-5 py-2 text-sm font-semibold text-white"
-          >
+          <Link href="/assessment" className="btn btn-primary mt-5">
             진단 시작
           </Link>
         </div>
@@ -79,10 +76,7 @@ export default async function DashboardPage() {
         <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
           <h1 className="text-2xl font-semibold text-slate-900">완료된 진단이 없습니다</h1>
           <p className="mt-2 text-sm text-slate-600">진단을 완료하면 액션플랜을 추적할 수 있습니다.</p>
-          <Link
-            href="/assessment"
-            className="mt-5 inline-flex rounded-full bg-slate-900 px-5 py-2 text-sm font-semibold text-white"
-          >
+          <Link href="/assessment" className="btn btn-primary mt-5">
             진단하러 가기
           </Link>
         </div>

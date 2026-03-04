@@ -55,7 +55,7 @@ export function ContactForm() {
           value={email}
           onChange={(event) => setEmail(event.target.value)}
           required
-          className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-slate-500"
+          className="field-control"
         />
       </label>
 
@@ -66,7 +66,7 @@ export function ContactForm() {
           value={subject}
           onChange={(event) => setSubject(event.target.value)}
           required
-          className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-slate-500"
+          className="field-control"
         />
       </label>
 
@@ -77,14 +77,14 @@ export function ContactForm() {
           onChange={(event) => setMessage(event.target.value)}
           rows={5}
           required
-          className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-slate-500"
+          className="field-control"
         />
       </label>
 
       <button
         type="submit"
         disabled={loading}
-        className="rounded-full bg-slate-900 px-5 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+        className="btn btn-primary"
       >
         {loading ? "전송 중..." : "문의 보내기"}
       </button>
