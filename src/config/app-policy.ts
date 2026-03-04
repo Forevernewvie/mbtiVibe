@@ -55,6 +55,11 @@ export const APP_POLICY = {
     maxSubjectLength: 120,
     maxMessageLength: 3_000,
   },
+  analytics: {
+    funnelDefaultWindowDays: 7,
+    funnelMinWindowDays: 1,
+    funnelMaxWindowDays: 90,
+  },
 } as const;
 
 /**
