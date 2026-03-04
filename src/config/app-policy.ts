@@ -24,16 +24,16 @@ export const APP_POLICY = {
   },
   pricing: {
     report: {
-      code: "REPORT_SINGLE_9900",
+      code: "REPORT_SINGLE_990",
       amount: 990,
       currency: "KRW",
     },
     coachingMonthly: {
-      code: "COACH_MONTHLY_19900",
+      code: "COACH_MONTHLY_2990",
       amount: 2_990,
       currency: "KRW",
     },
-    reportCheckoutHintCode: "REPORT_SINGLE_9900",
+    reportCheckoutHintCode: "REPORT_SINGLE_990",
   },
   checkout: {
     demoSubscriptionDays: 30,

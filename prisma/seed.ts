@@ -46,6 +46,8 @@ const questions: { order: number; prompt: string; axis: Axis }[] = [
   { order: 15, prompt: "지표(전환율, 잔존율) 기반으로 우선순위를 조정한다.", axis: Axis.MARKET },
 ];
 
+const LEGACY_PRICE_CODES = ["REPORT_SINGLE_9900", "COACH_MONTHLY_19900"] as const;
+
 /**
  * Seeds assessment questions and answer choices.
  */
@@ -147,6 +149,17 @@ async function seedProducts() {
       currency: APP_POLICY.pricing.coachingMonthly.currency,
       billingPeriod: BillingPeriod.MONTHLY,
       isActive: true,
+    },
+  });
+
+  await prisma.price.updateMany({
+    where: {
+      code: {
+        in: [...LEGACY_PRICE_CODES],
+      },
+    },
+    data: {
+      isActive: false,
     },
   });
 }
