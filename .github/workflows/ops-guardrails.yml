@@ -11,14 +11,8 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     env:
-      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-      VERCEL_ALIAS_URL: ${{ secrets.VERCEL_ALIAS_URL }}
-      VERCEL_ACCESS_POLICY: ${{ secrets.VERCEL_ACCESS_POLICY }}
-      DATABASE_URL: ${{ secrets.DATABASE_URL }}
-      ADMIN_API_TOKEN: ${{ secrets.ADMIN_API_TOKEN }}
-      VERCEL_TOKEN_ROTATED: ${{ secrets.VERCEL_TOKEN_ROTATED }}
-      DB_PASSWORD_ROTATED: ${{ secrets.DB_PASSWORD_ROTATED }}
-      SECURITY_ROTATION_COMPLETED_AT: ${{ secrets.SECURITY_ROTATION_COMPLETED_AT }}
+      CI_FALLBACK_DATABASE_URL: postgresql://ci_user:ci_pass@localhost:5432/ci_db?schema=public
+      CI_FALLBACK_APP_URL: https://example.com
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -39,23 +33,52 @@ jobs:
         run: npm run typecheck
 
       - name: Run Build
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL != '' && secrets.DATABASE_URL || env.CI_FALLBACK_DATABASE_URL }}
+          APP_URL: ${{ secrets.APP_URL != '' && secrets.APP_URL || env.CI_FALLBACK_APP_URL }}
         run: npm run build
 
       - name: Verify Vercel Access Policy
-        if: ${{ env.VERCEL_TOKEN != '' && env.VERCEL_ALIAS_URL != '' }}
+        if: ${{ secrets.VERCEL_TOKEN != '' && secrets.VERCEL_ALIAS_URL != '' }}
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ALIAS_URL: ${{ secrets.VERCEL_ALIAS_URL }}
+          VERCEL_ACCESS_POLICY: ${{ secrets.VERCEL_ACCESS_POLICY }}
         run: npm run ops:verify:vercel-protection
 
       - name: Verify Security Rotation
-        if: ${{ env.VERCEL_TOKEN != '' && env.DATABASE_URL != '' && env.ADMIN_API_TOKEN != '' && env.SECURITY_ROTATION_COMPLETED_AT != '' }}
+        if: ${{ secrets.VERCEL_TOKEN != '' && secrets.DATABASE_URL != '' && secrets.ADMIN_API_TOKEN != '' && secrets.SECURITY_ROTATION_COMPLETED_AT != '' }}
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          ADMIN_API_TOKEN: ${{ secrets.ADMIN_API_TOKEN }}
+          VERCEL_TOKEN_ROTATED: ${{ secrets.VERCEL_TOKEN_ROTATED }}
+          DB_PASSWORD_ROTATED: ${{ secrets.DB_PASSWORD_ROTATED }}
+          SECURITY_ROTATION_COMPLETED_AT: ${{ secrets.SECURITY_ROTATION_COMPLETED_AT }}
         run: npm run ops:verify:security-rotation
 
       - name: Verify Vercel Environment Sync
-        if: ${{ env.VERCEL_TOKEN != '' }}
+        if: ${{ secrets.VERCEL_TOKEN != '' }}
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: npm run ops:verify:vercel-env-sync
 
       - name: Generate Security Rotation Report
-        if: ${{ env.VERCEL_TOKEN != '' }}
+        if: ${{ secrets.VERCEL_TOKEN != '' }}
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ALIAS_URL: ${{ secrets.VERCEL_ALIAS_URL }}
+          VERCEL_ACCESS_POLICY: ${{ secrets.VERCEL_ACCESS_POLICY }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          ADMIN_API_TOKEN: ${{ secrets.ADMIN_API_TOKEN }}
+          VERCEL_TOKEN_ROTATED: ${{ secrets.VERCEL_TOKEN_ROTATED }}
+          DB_PASSWORD_ROTATED: ${{ secrets.DB_PASSWORD_ROTATED }}
+          SECURITY_ROTATION_COMPLETED_AT: ${{ secrets.SECURITY_ROTATION_COMPLETED_AT }}
         run: npm run ops:report:security-rotation
+
+      - name: Ensure Reports Directory
+        if: ${{ always() }}
+        run: mkdir -p reports
 
       - name: Upload Reports
         if: ${{ always() }}
