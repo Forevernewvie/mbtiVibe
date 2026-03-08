@@ -16,6 +16,7 @@
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
+    "legal:generate:privacy": "tsx scripts/generate-privacy-page.ts",
     "ops:verify:vercel-protection": "tsx scripts/verify-vercel-protection.ts",
     "ops:verify:security-rotation": "tsx scripts/security-rotation-checklist.ts",
     "ops:verify:vercel-env-sync": "tsx scripts/verify-vercel-env-sync.ts",

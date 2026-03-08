@@ -1,106 +1,27 @@
 import Link from "next/link";
 
-type PolicySection = {
-  title: string;
-  items: string[];
-};
-
-const PRIVACY_POLICY_SECTIONS: PolicySection[] = [
-  {
-    title: "1. 수집하는 개인정보 항목",
-    items: [
-      "필수 또는 자동 수집 항목: 세션 토큰, 진단 응답, 접속 로그, 기기/브라우저 정보, 결제 및 구독 상태 정보",
-      "이용자가 직접 제공하는 항목: 이메일 주소, 문의 내용, 고객지원 요청 시 추가로 입력한 정보",
-      "결제 과정에서 외부 결제수단을 사용하는 경우, 결제 완료 여부와 거래 식별자 등 결제 처리에 필요한 최소 정보가 연동될 수 있습니다.",
-    ],
-  },
-  {
-    title: "2. 개인정보 이용 목적",
-    items: [
-      "성향 진단 결과, 액션플랜, 대시보드 등 핵심 서비스 기능 제공",
-      "유료 리포트 결제 처리, 구독 상태 관리, 중복 결제 및 환불 대응",
-      "문의 접수, 데이터 삭제 요청, 고객지원 응대",
-      "서비스 품질 개선, 실험 분석, 장애 추적, 보안 대응",
-    ],
-  },
-  {
-    title: "3. 수집 방법",
-    items: [
-      "서비스 이용 과정에서 자동 생성되는 로그 및 세션 정보",
-      "진단, 결제, 문의, 구독 이용 과정에서 이용자가 직접 입력한 정보",
-      "결제, 이메일 발송, 분석, 호스팅 등 외부 서비스 연동 과정에서 필요한 범위의 처리 정보",
-    ],
-  },
-  {
-    title: "4. 보유 및 이용 기간",
-    items: [
-      "진단 결과 및 서비스 이용 데이터는 서비스 제공과 운영 분석에 필요한 기간 동안 보관합니다.",
-      "결제, 환불, 전자상거래 관련 정보는 관계 법령에서 정한 기간 동안 보관할 수 있습니다.",
-      "문의 및 삭제 요청 기록은 분쟁 대응과 이력 확인을 위해 필요한 기간 동안 보관할 수 있습니다.",
-      "보관 목적이 종료되거나 이용자의 삭제 요청이 확인되면 지체 없이 파기합니다.",
-    ],
-  },
-  {
-    title: "5. 제3자 제공 및 처리위탁",
-    items: [
-      "서비스는 인프라, 데이터 저장, 결제, 이메일 발송, 분석 기능 제공을 위해 외부 서비스를 사용할 수 있습니다.",
-      "현재 운영 환경 기준 주요 외부 처리 서비스: Vercel(호스팅), Neon(데이터베이스), Stripe(결제), Resend(이메일), PostHog(제품 분석)",
-      "외부 서비스는 각자의 역할 범위 내에서만 개인정보를 처리하며, 서비스 운영 목적 외 용도로 사용하지 않습니다.",
-    ],
-  },
-  {
-    title: "6. 쿠키 및 세션 정보",
-    items: [
-      "서비스는 진단 진행 상태 유지와 결과 조회 연속성을 위해 세션 쿠키 또는 유사 식별자를 사용할 수 있습니다.",
-      "세션 정보는 로그인 식별, 대시보드 연결, 부정 사용 방지, 운영 안정성 확보를 위해 사용됩니다.",
-      "이용자는 브라우저 설정을 통해 쿠키 저장을 거부할 수 있으나, 일부 기능 사용이 제한될 수 있습니다.",
-    ],
-  },
-  {
-    title: "7. 이용자의 권리",
-    items: [
-      "이용자는 본인의 개인정보에 대해 열람, 정정, 삭제, 처리정지 요청을 할 수 있습니다.",
-      "데이터 삭제 또는 문의 요청은 문의 페이지를 통해 접수할 수 있으며, 본인 확인 후 처리됩니다.",
-      "법령상 보관 의무가 있는 정보는 즉시 삭제가 제한될 수 있으며, 이 경우 제한 사유를 안내합니다.",
-    ],
-  },
-  {
-    title: "8. 개인정보 파기 절차 및 방법",
-    items: [
-      "보유 기간이 종료되거나 처리 목적이 달성된 정보는 지체 없이 파기 대상에 포함됩니다.",
-      "전자적 파일 형태의 정보는 복구가 어렵도록 삭제하거나 재생 불가능한 방식으로 파기합니다.",
-      "출력물 등 기록물은 분쇄 또는 소각 등 적절한 방식으로 파기합니다.",
-    ],
-  },
-  {
-    title: "9. 안전성 확보 조치",
-    items: [
-      "접근 권한 최소화, 비밀정보 분리, 로그 기록, 보안 회전 절차 등 관리적 보호조치를 적용합니다.",
-      "호스팅, 데이터베이스, 결제, 이메일, 분석 서비스는 운영 환경에 맞는 접근 통제와 전송 구간 보호 설정을 사용합니다.",
-      "보안 사고 또는 이상 징후 발생 시 로그 및 운영 절차에 따라 대응합니다.",
-    ],
-  },
-];
+import { PRIVACY_POLICY_DOCUMENT } from "@/lib/legal/privacy-policy-content";
 
 /**
- * Provides the user-facing privacy policy with service-specific processing details.
+ * Provides the app-hosted privacy policy view from the canonical legal content source.
  */
 export default function PrivacyPage() {
   return (
     <main className="mx-auto w-full max-w-4xl px-6 py-14">
       <article className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
         <div className="border-b border-slate-200 pb-6">
-          <p className="text-xs font-semibold uppercase tracking-wider text-amber-700">Privacy Policy</p>
-          <h1 className="mt-2 text-3xl font-semibold text-slate-900">개인정보처리방침</h1>
-          <p className="mt-3 text-sm leading-7 text-slate-700">
-            VibeWeb Growth Lab은 서비스 제공에 필요한 범위에서만 개인정보를 수집하고 이용합니다. 본 방침은
-            이용자가 진단, 결제, 문의, 대시보드 기능을 사용할 때 어떤 정보가 처리되는지 설명하기 위해
-            작성되었습니다.
+          <p className="text-xs font-semibold uppercase tracking-wider text-amber-700">
+            {PRIVACY_POLICY_DOCUMENT.subtitle}
           </p>
+          <h1 className="mt-2 text-3xl font-semibold text-slate-900">{PRIVACY_POLICY_DOCUMENT.title}</h1>
+          <p className="mt-3 text-sm leading-7 text-slate-700">
+            {PRIVACY_POLICY_DOCUMENT.introduction}
+          </p>
+          <p className="mt-2 text-xs text-slate-500">최종 업데이트: {PRIVACY_POLICY_DOCUMENT.updatedAt}</p>
         </div>
 
         <div className="mt-8 space-y-8">
-          {PRIVACY_POLICY_SECTIONS.map((section) => (
+          {PRIVACY_POLICY_DOCUMENT.sections.map((section) => (
             <section key={section.title} className="space-y-3">
               <h2 className="text-lg font-semibold text-slate-900">{section.title}</h2>
               <ul className="space-y-2 text-sm leading-7 text-slate-700">
@@ -119,11 +40,14 @@ export default function PrivacyPage() {
               <p>개인정보 관련 문의, 열람, 정정, 삭제 요청은 아래 경로로 접수할 수 있습니다.</p>
               <p>
                 문의 페이지:{" "}
-                <Link href="/contact" className="font-semibold text-slate-900 underline underline-offset-4">
-                  /contact
+                <Link
+                  href={PRIVACY_POLICY_DOCUMENT.contactRoute}
+                  className="font-semibold text-slate-900 underline underline-offset-4"
+                >
+                  {PRIVACY_POLICY_DOCUMENT.contactRoute}
                 </Link>
               </p>
-              <p>운영 주체: VibeWeb Growth Lab</p>
+              <p>운영 주체: {PRIVACY_POLICY_DOCUMENT.operatorName}</p>
               <p>본 방침은 서비스 운영 내용 변경 또는 법령 변경에 따라 업데이트될 수 있습니다.</p>
             </div>
           </section>
