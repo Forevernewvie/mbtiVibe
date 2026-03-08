@@ -9,15 +9,20 @@ import {
 
 import { APP_POLICY } from "@/config/app-policy";
 import { BadRequestError, NotFoundError } from "@/lib/errors";
-import { env } from "@/lib/env";
 import type { Logger } from "@/lib/logger";
-import { getPaymentClient, resolvePaymentProvider } from "@/lib/payment/providers";
-import type { EventTracker } from "@/server/types/contracts";
+import type {
+  AppUrlResolver,
+  EventTracker,
+  PaymentCheckoutResult,
+  PaymentGateway,
+} from "@/server/types/contracts";
 
 type CheckoutServiceDependencies = {
   prismaClient: PrismaClient;
   tracker: EventTracker;
   logger: Logger;
+  paymentGateway: PaymentGateway;
+  appUrlResolver: AppUrlResolver;
   now?: () => Date;
 };
 
@@ -36,12 +41,16 @@ export class CheckoutService {
   private readonly prismaClient: PrismaClient;
   private readonly tracker: EventTracker;
   private readonly logger: Logger;
+  private readonly paymentGateway: PaymentGateway;
+  private readonly appUrlResolver: AppUrlResolver;
   private readonly now: () => Date;
 
   constructor(dependencies: CheckoutServiceDependencies) {
     this.prismaClient = dependencies.prismaClient;
     this.tracker = dependencies.tracker;
     this.logger = dependencies.logger;
+    this.paymentGateway = dependencies.paymentGateway;
+    this.appUrlResolver = dependencies.appUrlResolver;
     this.now = dependencies.now ?? (() => new Date());
   }
 
@@ -49,6 +58,62 @@ export class CheckoutService {
    * Creates checkout session and stores pending/paid payment rows.
    */
   async createCheckout(input: CreateCheckoutInput) {
+    const { assessment, price } = await this.loadCheckoutContext(input);
+    const provider = this.paymentGateway.getProvider();
+    const resultPage = this.buildResultPageUrl(input.assessmentId);
+    const checkout = await this.paymentGateway.createCheckout({
+      assessmentId: input.assessmentId,
+      customerEmail: input.email,
+      price,
+      successUrl: resultPage,
+      cancelUrl: resultPage,
+    });
+
+    const isManual = provider === PaymentProvider.MANUAL;
+    const checkoutCreatedAt = this.now();
+
+    await this.persistCheckout({
+      input,
+      assessment,
+      price,
+      checkout,
+      provider,
+      isManual,
+      checkoutCreatedAt,
+    });
+
+    await this.tracker.track({
+      name: "checkout_created",
+      sessionToken: assessment.sessionToken,
+      userId: assessment.userId ?? undefined,
+      properties: {
+        assessmentId: input.assessmentId,
+        priceCode: input.priceCode,
+        provider,
+        amount: price.amount,
+        billingPeriod: price.billingPeriod,
+      },
+    });
+
+    this.logger.info("Checkout created", {
+      assessmentId: input.assessmentId,
+      externalId: checkout.externalId,
+      provider,
+      isManual,
+    });
+
+    return {
+      checkoutUrl: checkout.checkoutUrl,
+      externalId: checkout.externalId,
+      provider,
+      demoPaid: isManual,
+    };
+  }
+
+  /**
+   * Loads and validates assessment/price data required for checkout creation.
+   */
+  private async loadCheckoutContext(input: CreateCheckoutInput) {
     const [assessment, price] = await Promise.all([
       this.prismaClient.assessment.findUnique({ where: { id: input.assessmentId } }),
       this.prismaClient.price.findUnique({
@@ -69,22 +134,46 @@ export class CheckoutService {
       });
     }
 
-    const provider = resolvePaymentProvider();
-    const paymentClient = getPaymentClient();
-
-    const resultPage = `${env.APP_URL}/results/${input.assessmentId}`;
-
-    const checkout = await paymentClient.createCheckout({
-      assessmentId: input.assessmentId,
-      customerEmail: input.email,
+    return {
+      assessment,
       price,
-      successUrl: resultPage,
-      cancelUrl: resultPage,
-    });
+    };
+  }
 
-    const isManual = provider === PaymentProvider.MANUAL;
-    const checkoutCreatedAt = this.now();
+  /**
+   * Builds result page URL used for checkout success and cancel redirects.
+   */
+  private buildResultPageUrl(assessmentId: string): string {
+    return `${this.appUrlResolver.getAppUrl()}/results/${assessmentId}`;
+  }
 
+  /**
+   * Persists payment state and optional subscription side effects atomically.
+   */
+  private async persistCheckout({
+    input,
+    assessment,
+    price,
+    checkout,
+    provider,
+    isManual,
+    checkoutCreatedAt,
+  }: {
+    input: CreateCheckoutInput;
+    assessment: {
+      userId: string | null;
+    };
+    price: {
+      id: string;
+      amount: number;
+      currency: string;
+      billingPeriod: BillingPeriod;
+    };
+    checkout: PaymentCheckoutResult;
+    provider: PaymentProvider;
+    isManual: boolean;
+    checkoutCreatedAt: Date;
+  }) {
     await this.prismaClient.$transaction(async (tx) => {
       const payment = await tx.payment.create({
         data: {
@@ -132,33 +221,6 @@ export class CheckoutService {
         });
       }
     });
-
-    await this.tracker.track({
-      name: "checkout_created",
-      sessionToken: assessment.sessionToken,
-      userId: assessment.userId ?? undefined,
-      properties: {
-        assessmentId: input.assessmentId,
-        priceCode: input.priceCode,
-        provider,
-        amount: price.amount,
-        billingPeriod: price.billingPeriod,
-      },
-    });
-
-    this.logger.info("Checkout created", {
-      assessmentId: input.assessmentId,
-      externalId: checkout.externalId,
-      provider,
-      isManual,
-    });
-
-    return {
-      checkoutUrl: checkout.checkoutUrl,
-      externalId: checkout.externalId,
-      provider,
-      demoPaid: isManual,
-    };
   }
 
   /**

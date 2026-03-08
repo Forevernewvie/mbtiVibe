@@ -66,7 +66,7 @@ export class PaymentWebhookService {
    * Processes webhook request for configured payment provider.
    */
   async handle(request: Request) {
-    if (env.PAYMENT_PROVIDER === "stripe" && env.STRIPE_SECRET_KEY && env.STRIPE_WEBHOOK_SECRET) {
+    if (env.PAYMENT_PROVIDER === "stripe") {
       return this.handleStripeWebhook(request);
     }
 

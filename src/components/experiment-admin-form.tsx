@@ -113,8 +113,13 @@ export function ExperimentAdminForm({ defaultToken = "" }: Props) {
         className="field-control"
       />
 
-      <label className="inline-flex items-center gap-2 text-sm text-slate-700">
-        <input type="checkbox" checked={isActive} onChange={(event) => setIsActive(event.target.checked)} />
+      <label className="inline-flex min-h-11 items-center gap-2 rounded-lg px-2 text-sm text-slate-700">
+        <input
+          type="checkbox"
+          checked={isActive}
+          onChange={(event) => setIsActive(event.target.checked)}
+          className="h-4 w-4"
+        />
         활성 상태
       </label>
 
