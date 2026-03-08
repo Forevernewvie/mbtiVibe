@@ -8,6 +8,7 @@ import { EnvAppUrlResolver } from "@/server/services/app-url-resolver";
 import { CheckoutService } from "@/server/services/checkout-service";
 import { eventTracker } from "@/server/services/event-tracker";
 import { ExperimentService } from "@/server/services/experiment-service";
+import { EnvPaymentWebhookGateway } from "@/server/services/payment-webhook-gateway";
 import { MetricsService } from "@/server/services/metrics-service";
 import { PaymentWebhookService } from "@/server/services/payment-webhook-service";
 import { ReportService } from "@/server/services/report-service";
@@ -49,5 +50,6 @@ export const services = {
     prismaClient: prisma,
     tracker: eventTracker,
     logger,
+    webhookGateway: new EnvPaymentWebhookGateway(),
   }),
 };

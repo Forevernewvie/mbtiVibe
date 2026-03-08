@@ -3,6 +3,7 @@ import { PaymentProvider, PaymentStatus, type PrismaClient } from "@prisma/clien
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { BadRequestError } from "@/lib/errors";
+import { EnvPaymentWebhookGateway } from "@/server/services/payment-webhook-gateway";
 import { PaymentWebhookService } from "@/server/services/payment-webhook-service";
 
 const STRIPE_WEBHOOK_SECRET = vi.hoisted(() => "whsec_test_secret_key");
@@ -69,6 +70,7 @@ function buildServiceContext() {
     prismaClient: prismaClient as unknown as PrismaClient,
     tracker,
     logger,
+    webhookGateway: new EnvPaymentWebhookGateway(),
   });
 
   return {

@@ -1,30 +1,17 @@
-import Stripe from "stripe";
-
-import { PaymentStatus, PrismaClient, SubscriptionStatus } from "@prisma/client";
-
-import { BadRequestError } from "@/lib/errors";
-import { env } from "@/lib/env";
+import { PaymentStatus, PrismaClient } from "@prisma/client";
 import type { Logger } from "@/lib/logger";
-import type { EventTracker } from "@/server/types/contracts";
+import type {
+  EventTracker,
+  PaymentStatusUpdate,
+  PaymentWebhookGateway,
+  SubscriptionStatusUpdate,
+} from "@/server/types/contracts";
 
 type PaymentWebhookServiceDependencies = {
-  prismaClient: PrismaClient;
+  prismaClient: Pick<PrismaClient, "$transaction" | "subscription">;
   tracker: EventTracker;
   logger: Logger;
-};
-
-type ManualWebhookPayload = {
-  externalId?: string;
-  status?: "PAID" | "FAILED" | "REFUNDED";
-};
-
-type ApplyPaymentStatusInput = {
-  externalId: string;
-  nextStatus: PaymentStatus;
-  source: "manual_webhook" | "stripe_webhook";
-  sourceStatus: string;
-  eventId?: string;
-  eventType?: string;
+  webhookGateway: PaymentWebhookGateway;
 };
 
 type PaymentTransitionResult = {
@@ -36,196 +23,49 @@ type PaymentTransitionResult = {
   currentStatus?: PaymentStatus;
 };
 
-const MANUAL_STATUS_MAP: Record<NonNullable<ManualWebhookPayload["status"]>, PaymentStatus> = {
-  PAID: PaymentStatus.PAID,
-  FAILED: PaymentStatus.FAILED,
-  REFUNDED: PaymentStatus.REFUNDED,
-};
-
-const STRIPE_PAYMENT_EVENT_STATUS: Partial<Record<Stripe.Event.Type, PaymentStatus>> = {
-  "checkout.session.completed": PaymentStatus.PAID,
-  "checkout.session.async_payment_failed": PaymentStatus.FAILED,
-  "checkout.session.expired": PaymentStatus.FAILED,
-};
-
 /**
  * Handles payment provider webhook normalization and persistence.
  */
 export class PaymentWebhookService {
-  private readonly prismaClient: PrismaClient;
+  private readonly prismaClient: Pick<PrismaClient, "$transaction" | "subscription">;
   private readonly tracker: EventTracker;
   private readonly logger: Logger;
+  private readonly webhookGateway: PaymentWebhookGateway;
 
   constructor(dependencies: PaymentWebhookServiceDependencies) {
     this.prismaClient = dependencies.prismaClient;
     this.tracker = dependencies.tracker;
     this.logger = dependencies.logger;
+    this.webhookGateway = dependencies.webhookGateway;
   }
 
   /**
    * Processes webhook request for configured payment provider.
    */
   async handle(request: Request) {
-    if (env.PAYMENT_PROVIDER === "stripe") {
-      return this.handleStripeWebhook(request);
+    const parsed = await this.webhookGateway.parse(request);
+
+    for (const paymentUpdate of parsed.paymentUpdates) {
+      await this.applyPaymentStatus(paymentUpdate);
     }
 
-    const body = await this.parseManualWebhookPayload(request);
-    const result = await this.applyPaymentStatus({
-      externalId: body.externalId,
-      nextStatus: MANUAL_STATUS_MAP[body.status],
-      source: "manual_webhook",
-      sourceStatus: body.status,
+    for (const subscriptionUpdate of parsed.subscriptionUpdates) {
+      await this.applySubscriptionStatus(subscriptionUpdate);
+    }
+
+    this.logger.info("Payment webhook processed", {
+      ...parsed.logContext,
+      paymentUpdateCount: parsed.paymentUpdates.length,
+      subscriptionUpdateCount: parsed.subscriptionUpdates.length,
     });
 
-    this.logger.info("Manual webhook processed", {
-      externalId: body.externalId,
-      status: body.status,
-      changed: result.changed,
-      found: result.found,
-      paymentId: result.paymentId,
-    });
-
-    return { ok: true };
-  }
-
-  /**
-   * Validates Stripe signature and applies billing status updates.
-   */
-  private async handleStripeWebhook(request: Request) {
-    const stripe = new Stripe(env.STRIPE_SECRET_KEY!, {
-      apiVersion: "2026-02-25.clover",
-    });
-
-    const signature = request.headers.get("stripe-signature");
-
-    if (!signature) {
-      throw new BadRequestError("Missing stripe-signature header");
-    }
-
-    const payload = await request.text();
-
-    let event: Stripe.Event;
-
-    try {
-      event = stripe.webhooks.constructEvent(payload, signature, env.STRIPE_WEBHOOK_SECRET!);
-    } catch (error) {
-      throw new BadRequestError("Invalid webhook signature", {
-        message: error instanceof Error ? error.message : "unknown",
-      });
-    }
-
-    const stripePaymentStatus = STRIPE_PAYMENT_EVENT_STATUS[event.type];
-
-    if (stripePaymentStatus) {
-      const session = event.data.object as Stripe.Checkout.Session;
-      const result = await this.applyPaymentStatus({
-        externalId: session.id,
-        nextStatus: stripePaymentStatus,
-        source: "stripe_webhook",
-        sourceStatus: event.type,
-        eventId: event.id,
-        eventType: event.type,
-      });
-
-      this.logger.info("Stripe payment event processed", {
-        eventId: event.id,
-        eventType: event.type,
-        externalId: session.id,
-        found: result.found,
-        changed: result.changed,
-      });
-    }
-
-    if (event.type === "customer.subscription.updated") {
-      const subscription = event.data.object as Stripe.Subscription;
-      const itemPeriodEnd = subscription.items.data[0]?.current_period_end;
-
-      const updateResult = await this.prismaClient.subscription.updateMany({
-        where: {
-          externalId: subscription.id,
-        },
-        data: {
-          status: this.mapStripeSubscriptionStatus(subscription.status),
-          currentPeriodEnd: itemPeriodEnd ? new Date(itemPeriodEnd * 1000) : null,
-        },
-      });
-
-      await this.tracker.track({
-        name: "subscription_webhook_updated",
-        properties: {
-          provider: "stripe",
-          externalId: subscription.id,
-          eventId: event.id,
-          eventType: event.type,
-          updatedCount: updateResult.count,
-          status: subscription.status,
-        },
-      });
-    }
-
-    if (event.type === "customer.subscription.deleted") {
-      const subscription = event.data.object as Stripe.Subscription;
-
-      const updateResult = await this.prismaClient.subscription.updateMany({
-        where: {
-          externalId: subscription.id,
-        },
-        data: {
-          status: SubscriptionStatus.CANCELED,
-        },
-      });
-
-      await this.tracker.track({
-        name: "subscription_webhook_updated",
-        properties: {
-          provider: "stripe",
-          externalId: subscription.id,
-          eventId: event.id,
-          eventType: event.type,
-          updatedCount: updateResult.count,
-          status: "canceled",
-        },
-      });
-    }
-
-    this.logger.info("Stripe webhook processed", {
-      eventType: event.type,
-      eventId: event.id,
-    });
-
-    return { received: true };
-  }
-
-  /**
-   * Parses manual webhook payload and validates required fields.
-   */
-  private async parseManualWebhookPayload(request: Request): Promise<{
-    externalId: string;
-    status: NonNullable<ManualWebhookPayload["status"]>;
-  }> {
-    let body: ManualWebhookPayload;
-
-    try {
-      body = (await request.json()) as ManualWebhookPayload;
-    } catch {
-      throw new BadRequestError("유효한 JSON 본문이 필요합니다.");
-    }
-
-    if (!body.externalId || !body.status) {
-      throw new BadRequestError("externalId/status가 필요합니다.");
-    }
-
-    return {
-      externalId: body.externalId,
-      status: body.status,
-    };
+    return parsed.responseBody;
   }
 
   /**
    * Applies payment status transition with idempotent transaction semantics.
    */
-  private async applyPaymentStatus(input: ApplyPaymentStatusInput): Promise<PaymentTransitionResult> {
+  private async applyPaymentStatus(input: PaymentStatusUpdate): Promise<PaymentTransitionResult> {
     const transitioned = await this.prismaClient.$transaction(async (tx) => {
       const payment = await tx.payment.findUnique({
         where: { externalId: input.externalId },
@@ -301,6 +141,35 @@ export class PaymentWebhookService {
   }
 
   /**
+   * Applies subscription status updates emitted by provider-specific webhook gateways.
+   */
+  private async applySubscriptionStatus(input: SubscriptionStatusUpdate) {
+    const updateResult = await this.prismaClient.subscription.updateMany({
+      where: {
+        externalId: input.externalId,
+      },
+      data: {
+        status: input.status,
+        currentPeriodEnd: input.currentPeriodEnd ?? null,
+      },
+    });
+
+    await this.tracker.track({
+      name: "subscription_webhook_updated",
+      properties: {
+        provider: input.provider,
+        externalId: input.externalId,
+        eventId: input.eventId,
+        eventType: input.eventType,
+        updatedCount: updateResult.count,
+        status: input.status,
+        source: input.source,
+        sourceStatus: input.sourceStatus,
+      },
+    });
+  }
+
+  /**
    * Resolves paidAt value for next status while preserving refund timestamps.
    */
   private resolveNextPaidAt(currentPaidAt: Date | null, nextStatus: PaymentStatus): Date | null {
@@ -313,19 +182,5 @@ export class PaymentWebhookService {
     }
 
     return null;
-  }
-
-  /**
-   * Maps Stripe subscription status values into internal enum.
-   */
-  private mapStripeSubscriptionStatus(status: Stripe.Subscription.Status) {
-    if (status === "active") return SubscriptionStatus.ACTIVE;
-    if (status === "trialing") return SubscriptionStatus.TRIALING;
-    if (status === "past_due") return SubscriptionStatus.PAST_DUE;
-    if (status === "canceled" || status === "unpaid" || status === "incomplete_expired") {
-      return SubscriptionStatus.CANCELED;
-    }
-
-    return SubscriptionStatus.EXPIRED;
   }
 }
