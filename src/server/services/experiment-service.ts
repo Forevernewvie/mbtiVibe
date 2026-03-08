@@ -1,10 +1,14 @@
-import { PrismaClient } from "@prisma/client";
+import { type PrismaClient } from "@prisma/client";
 
-import { UnauthorizedError } from "@/lib/errors";
-import { env } from "@/lib/env";
+import type { AdminAccessPolicy } from "@/server/types/contracts";
 
 type ExperimentServiceDependencies = {
-  prismaClient: PrismaClient;
+  prismaClient: ExperimentPersistence;
+  adminAccessPolicy: AdminAccessPolicy;
+};
+
+type ExperimentPersistence = {
+  experiment: Pick<PrismaClient["experiment"], "findMany" | "upsert">;
 };
 
 export type UpsertExperimentInput = {
@@ -20,10 +24,12 @@ export type UpsertExperimentInput = {
  * Manages A/B experiment definitions.
  */
 export class ExperimentService {
-  private readonly prismaClient: PrismaClient;
+  private readonly prismaClient: ExperimentPersistence;
+  private readonly adminAccessPolicy: AdminAccessPolicy;
 
   constructor(dependencies: ExperimentServiceDependencies) {
     this.prismaClient = dependencies.prismaClient;
+    this.adminAccessPolicy = dependencies.adminAccessPolicy;
   }
 
   /**
@@ -41,9 +47,7 @@ export class ExperimentService {
    * Upserts experiment after validating admin authentication token.
    */
   async upsert(input: UpsertExperimentInput) {
-    if (!env.ADMIN_API_TOKEN || input.adminToken !== env.ADMIN_API_TOKEN) {
-      throw new UnauthorizedError("Unauthorized");
-    }
+    this.adminAccessPolicy.assertAuthorized(input.adminToken);
 
     return this.prismaClient.experiment.upsert({
       where: { key: input.key },

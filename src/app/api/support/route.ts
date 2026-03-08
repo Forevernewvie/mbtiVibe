@@ -1,7 +1,7 @@
 import { parseJsonBody, validateSchema } from "@/lib/api";
 import { toErrorResponse } from "@/lib/errors";
 import { supportTicketSchema } from "@/lib/schemas";
-import { services } from "@/server/services/service-factory";
+import { createServerServices } from "@/server/services/service-factory";
 import { NextResponse } from "next/server";
 
 /**
@@ -9,6 +9,7 @@ import { NextResponse } from "next/server";
  */
 export async function POST(request: Request) {
   try {
+    const services = createServerServices();
     const payload = await parseJsonBody(request, {});
     const input = validateSchema(supportTicketSchema, payload);
     const result = await services.support.createTicket(input);

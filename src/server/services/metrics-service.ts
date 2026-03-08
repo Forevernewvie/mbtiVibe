@@ -1,12 +1,18 @@
-import { AssessmentStatus, PaymentStatus, PrismaClient } from "@prisma/client";
+import { AssessmentStatus, PaymentStatus, type PrismaClient } from "@prisma/client";
 
 import { APP_POLICY } from "@/config/app-policy";
-import { BadRequestError, UnauthorizedError } from "@/lib/errors";
-import { env } from "@/lib/env";
+import { BadRequestError } from "@/lib/errors";
+import type { AdminAccessPolicy } from "@/server/types/contracts";
 
 type MetricsServiceDependencies = {
-  prismaClient: PrismaClient;
+  prismaClient: MetricsPersistence;
+  adminAccessPolicy: AdminAccessPolicy;
   now?: () => Date;
+};
+
+type MetricsPersistence = {
+  assessment: Pick<PrismaClient["assessment"], "count">;
+  payment: Pick<PrismaClient["payment"], "count">;
 };
 
 type FunnelCounts = {
@@ -35,11 +41,13 @@ export type FunnelMetricsOutput = {
  * Provides conversion-funnel metrics for paid report and subscription flows.
  */
 export class MetricsService {
-  private readonly prismaClient: PrismaClient;
+  private readonly prismaClient: MetricsPersistence;
+  private readonly adminAccessPolicy: AdminAccessPolicy;
   private readonly now: () => Date;
 
   constructor(dependencies: MetricsServiceDependencies) {
     this.prismaClient = dependencies.prismaClient;
+    this.adminAccessPolicy = dependencies.adminAccessPolicy;
     this.now = dependencies.now ?? (() => new Date());
   }
 
@@ -47,7 +55,7 @@ export class MetricsService {
    * Returns funnel metrics for a rolling day window after admin authorization.
    */
   async getFunnelMetrics(daysInput: number | undefined, adminToken?: string | null): Promise<FunnelMetricsOutput> {
-    this.assertAdminToken(adminToken);
+    this.adminAccessPolicy.assertAuthorized(adminToken);
 
     const windowDays = this.resolveWindowDays(daysInput);
     const now = this.now();
@@ -95,15 +103,6 @@ export class MetricsService {
         paidRateFromStart: this.toRate(paidPayments, startedAssessments),
       },
     };
-  }
-
-  /**
-   * Verifies caller is authorized with configured admin API token.
-   */
-  private assertAdminToken(adminToken?: string | null): void {
-    if (!env.ADMIN_API_TOKEN || adminToken !== env.ADMIN_API_TOKEN) {
-      throw new UnauthorizedError("Unauthorized");
-    }
   }
 
   /**

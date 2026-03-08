@@ -174,18 +174,28 @@ export function getPaymentClient(): PaymentClient {
  * Environment-backed payment gateway used by production checkout service wiring.
  */
 export class EnvPaymentGateway implements PaymentGateway {
+  private readonly provider: PaymentProvider;
+  private readonly paymentClient: PaymentClient;
+
+  constructor(
+    provider: PaymentProvider = resolvePaymentProvider(),
+    paymentClient: PaymentClient = getPaymentClient(),
+  ) {
+    this.provider = provider;
+    this.paymentClient = paymentClient;
+  }
+
   /**
    * Returns active provider selected by environment variables.
    */
   getProvider(): PaymentProvider {
-    return resolvePaymentProvider();
+    return this.provider;
   }
 
   /**
    * Delegates checkout creation to the currently configured provider client.
    */
   async createCheckout(input: PaymentCheckoutInput): Promise<PaymentCheckoutResult> {
-    const paymentClient = getPaymentClient();
-    return paymentClient.createCheckout(input);
+    return this.paymentClient.createCheckout(input);
   }
 }

@@ -3,7 +3,7 @@ import { parseJsonBody, validateSchema, enforceRateLimit } from "@/lib/api";
 import { toErrorResponse } from "@/lib/errors";
 import { getRequestIp } from "@/lib/request";
 import { assessmentStartSchema } from "@/lib/schemas";
-import { services } from "@/server/services/service-factory";
+import { createServerServices } from "@/server/services/service-factory";
 import { cookies, headers } from "next/headers";
 import { NextResponse } from "next/server";
 
@@ -12,6 +12,7 @@ import { NextResponse } from "next/server";
  */
 export async function POST(request: Request) {
   try {
+    const services = createServerServices();
     const ip = await getRequestIp();
 
     enforceRateLimit(
