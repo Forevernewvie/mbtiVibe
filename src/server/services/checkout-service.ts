@@ -17,8 +17,13 @@ import type {
   PaymentGateway,
 } from "@/server/types/contracts";
 
+type CheckoutPersistence = Pick<PrismaClient, "$transaction"> & {
+  assessment: Pick<PrismaClient["assessment"], "findUnique">;
+  price: Pick<PrismaClient["price"], "findUnique">;
+};
+
 type CheckoutServiceDependencies = {
-  prismaClient: PrismaClient;
+  prismaClient: CheckoutPersistence;
   tracker: EventTracker;
   logger: Logger;
   paymentGateway: PaymentGateway;
@@ -38,7 +43,7 @@ export type CreateCheckoutInput = {
  * Handles checkout session orchestration and payment persistence.
  */
 export class CheckoutService {
-  private readonly prismaClient: PrismaClient;
+  private readonly prismaClient: CheckoutPersistence;
   private readonly tracker: EventTracker;
   private readonly logger: Logger;
   private readonly paymentGateway: PaymentGateway;
