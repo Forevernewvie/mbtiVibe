@@ -2,6 +2,7 @@ import { PaymentProvider, PaymentStatus, type PrismaClient } from "@prisma/clien
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { BadRequestError } from "@/lib/errors";
+import { EnvPaymentWebhookGateway } from "@/server/services/payment-webhook-gateway";
 import { PaymentWebhookService } from "@/server/services/payment-webhook-service";
 
 vi.mock("@/lib/env", () => ({
@@ -54,6 +55,7 @@ function buildServiceContext() {
     prismaClient: prismaClient as unknown as PrismaClient,
     tracker,
     logger,
+    webhookGateway: new EnvPaymentWebhookGateway(),
   });
 
   return {

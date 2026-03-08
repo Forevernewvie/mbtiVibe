@@ -1,4 +1,5 @@
-import { PaymentProvider, type Price } from "@prisma/client";
+import type Stripe from "stripe";
+import { PaymentProvider, PaymentStatus, SubscriptionStatus, type Price } from "@prisma/client";
 import type { ScoringInput, ScoringOutput } from "@/lib/scoring";
 
 /**
@@ -51,4 +52,47 @@ export interface AppUrlResolver {
  */
 export interface AssessmentScorer {
   calculate(responses: ScoringInput[]): ScoringOutput;
+}
+
+export type PaymentWebhookSource = "manual_webhook" | "stripe_webhook";
+
+export type PaymentStatusUpdate = {
+  externalId: string;
+  nextStatus: PaymentStatus;
+  source: PaymentWebhookSource;
+  sourceStatus: string;
+  eventId?: string;
+  eventType?: string;
+};
+
+export type SubscriptionStatusUpdate = {
+  externalId: string;
+  provider: PaymentProvider;
+  status: SubscriptionStatus;
+  source: PaymentWebhookSource;
+  sourceStatus: string;
+  currentPeriodEnd?: Date | null;
+  eventId?: string;
+  eventType?: string;
+};
+
+export type PaymentWebhookParseResult = {
+  responseBody: Record<string, unknown>;
+  paymentUpdates: PaymentStatusUpdate[];
+  subscriptionUpdates: SubscriptionStatusUpdate[];
+  logContext: Record<string, unknown>;
+};
+
+/**
+ * Payment webhook gateway abstraction that normalizes provider-specific requests.
+ */
+export interface PaymentWebhookGateway {
+  parse(request: Request): Promise<PaymentWebhookParseResult>;
+}
+
+/**
+ * Stripe webhook signature verification and event parsing abstraction.
+ */
+export interface StripeWebhookParser {
+  parse(request: Request): Promise<Stripe.Event>;
 }
