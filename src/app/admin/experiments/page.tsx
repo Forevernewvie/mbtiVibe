@@ -1,54 +1,10 @@
-import { APP_POLICY } from "@/config/app-policy";
 import { ExperimentAdminForm } from "@/components/experiment-admin-form";
-import { env } from "@/lib/env";
-import { prisma } from "@/lib/prisma";
-import { createServerServices } from "@/server/services/service-factory";
-import type { FunnelMetricsOutput } from "@/server/services/metrics-service";
+import {
+  loadAdminExperimentsPageData,
+  type ExperimentSummary,
+} from "@/server/loaders/admin-experiments-page-loader";
 
 export const dynamic = "force-dynamic";
-
-type ExperimentSummary = {
-  id: string;
-  key: string;
-  name: string;
-  variants: string[];
-  isActive: boolean;
-};
-
-type FunnelDashboardState = {
-  metrics: FunnelMetricsOutput | null;
-  errorMessage: string | null;
-};
-
-/**
- * Loads funnel metrics snapshot while keeping admin page resilient on failures.
- */
-async function loadFunnelDashboardState(): Promise<FunnelDashboardState> {
-  if (!env.ADMIN_API_TOKEN) {
-    return {
-      metrics: null,
-      errorMessage: "ADMIN_API_TOKEN 미설정으로 퍼널 지표를 불러올 수 없습니다.",
-    };
-  }
-
-  try {
-    const services = createServerServices();
-    const metrics = await services.metrics.getFunnelMetrics(
-      APP_POLICY.analytics.funnelDefaultWindowDays,
-      env.ADMIN_API_TOKEN,
-    );
-
-    return {
-      metrics,
-      errorMessage: null,
-    };
-  } catch {
-    return {
-      metrics: null,
-      errorMessage: "퍼널 지표 조회 중 오류가 발생했습니다.",
-    };
-  }
-}
 
 /**
  * Formats conversion ratio values into percentage labels.
@@ -61,12 +17,8 @@ function formatPercent(rate: number): string {
  * Displays experiment management UI for administrators.
  */
 export default async function ExperimentsAdminPage() {
-  const experiments = await prisma.experiment.findMany({
-    orderBy: {
-      updatedAt: "desc",
-    },
-  });
-  const funnelDashboard = await loadFunnelDashboardState();
+  const { experiments, funnelDashboard, windowDays } =
+    await loadAdminExperimentsPageData();
 
   return (
     <main className="mx-auto w-full max-w-4xl space-y-6 px-6 py-14">
@@ -82,7 +34,7 @@ export default async function ExperimentsAdminPage() {
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold text-slate-900">운영 퍼널 대시보드</h2>
         <p className="mt-1 text-sm text-slate-600">
-          최근 {APP_POLICY.analytics.funnelDefaultWindowDays}일 기준 전환 지표입니다.
+          최근 {windowDays}일 기준 전환 지표입니다.
         </p>
 
         {funnelDashboard.metrics ? (

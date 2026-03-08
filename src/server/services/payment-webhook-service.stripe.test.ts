@@ -3,18 +3,15 @@ import { PaymentProvider, PaymentStatus, type PrismaClient } from "@prisma/clien
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { BadRequestError } from "@/lib/errors";
-import { EnvPaymentWebhookGateway } from "@/server/services/payment-webhook-gateway";
+import {
+  ManualPaymentWebhookGateway,
+  PaymentWebhookGatewayRegistry,
+  StripePaymentWebhookGateway,
+} from "@/server/services/payment-webhook-gateway";
 import { PaymentWebhookService } from "@/server/services/payment-webhook-service";
+import { PaymentWebhookTransitionService } from "@/server/services/payment-webhook-transition-service";
 
 const STRIPE_WEBHOOK_SECRET = vi.hoisted(() => "whsec_test_secret_key");
-
-vi.mock("@/lib/env", () => ({
-  env: {
-    PAYMENT_PROVIDER: "stripe",
-    STRIPE_SECRET_KEY: "sk_test_123456789",
-    STRIPE_WEBHOOK_SECRET,
-  },
-}));
 
 type TransactionClientMock = {
   payment: {
@@ -67,10 +64,20 @@ function buildServiceContext() {
   };
 
   const service = new PaymentWebhookService({
-    prismaClient: prismaClient as unknown as PrismaClient,
-    tracker,
     logger,
-    webhookGateway: new EnvPaymentWebhookGateway(),
+    webhookGateway: new PaymentWebhookGatewayRegistry(PaymentProvider.STRIPE, {
+      [PaymentProvider.MANUAL]: new ManualPaymentWebhookGateway(),
+      [PaymentProvider.STRIPE]: new StripePaymentWebhookGateway(
+        "sk_test_123456789",
+        STRIPE_WEBHOOK_SECRET,
+      ),
+    }),
+    transitionApplier: new PaymentWebhookTransitionService({
+      prismaClient: prismaClient as unknown as PrismaClient,
+      tracker,
+      logger,
+      now: () => new Date("2026-03-04T00:00:00.000Z"),
+    }),
   });
 
   return {

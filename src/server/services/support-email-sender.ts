@@ -2,6 +2,7 @@ import type { Resend } from "resend";
 
 import type {
   SupportEmailSender,
+  SupportAcknowledgementTemplateBuilder,
   SupportTicketAcknowledgementInput,
 } from "@/server/types/contracts";
 
@@ -14,17 +15,20 @@ export class ResendSupportEmailSender implements SupportEmailSender {
   constructor(
     private readonly emailClient: ResendEmailClient,
     private readonly fromEmail: string,
+    private readonly templateBuilder: SupportAcknowledgementTemplateBuilder,
   ) {}
 
   /**
    * Sends a lightweight acknowledgement message for a newly created support ticket.
    */
   async sendAcknowledgement(input: SupportTicketAcknowledgementInput): Promise<void> {
+    const message = this.templateBuilder.build(input);
+
     await this.emailClient.emails.send({
       from: this.fromEmail,
       to: input.recipientEmail,
-      subject: "[VibeWeb] 문의가 접수되었습니다",
-      html: `<p>문의가 접수되었습니다. 티켓 번호: <strong>${input.ticketId}</strong></p>`,
+      subject: message.subject,
+      html: message.html,
     });
   }
 }

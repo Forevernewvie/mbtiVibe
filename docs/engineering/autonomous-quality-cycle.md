@@ -27,3 +27,24 @@ Status:
 - Checkout contracts now use `PaymentPriceSnapshot` instead of Prisma `Price`
 - Admin/report/support/metrics services gained isolated tests and explicit dependency seams
 - Environment-backed payment/webhook adapters now cache resolved clients for lower per-request overhead
+
+## Step 4
+Prompt:
+"Extract payment webhook state transitions into a dedicated transition service so request parsing and persistence orchestration evolve independently."
+
+Status:
+- Completed
+
+## Step 5
+Prompt:
+"Remove remaining support-mail hardcoded content from the sender implementation. Route it through a dedicated template builder backed by centralized policy."
+
+Status:
+- Completed
+
+## Step 6
+Prompt:
+"Add route-level regression tests for the most sensitive server entry points so composition-root rewiring cannot silently break API handlers."
+
+Status:
+- Completed
