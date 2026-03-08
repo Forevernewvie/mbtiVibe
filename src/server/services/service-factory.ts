@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { EnvPaymentGateway } from "@/lib/payment/providers";
 import { ActionPlanService } from "@/server/services/action-plan-service";
+import { DefaultAssessmentScorer } from "@/server/services/assessment-scorer";
 import { AssessmentService } from "@/server/services/assessment-service";
 import { EnvAppUrlResolver } from "@/server/services/app-url-resolver";
 import { CheckoutService } from "@/server/services/checkout-service";
@@ -20,6 +21,7 @@ export const services = {
     prismaClient: prisma,
     tracker: eventTracker,
     logger,
+    scorer: new DefaultAssessmentScorer(),
   }),
   checkout: new CheckoutService({
     prismaClient: prisma,

@@ -5,13 +5,23 @@ import { AssessmentStatus, PrismaClient } from "@prisma/client";
 import { APP_POLICY } from "@/config/app-policy";
 import { BadRequestError, NotFoundError } from "@/lib/errors";
 import type { Logger } from "@/lib/logger";
-import { calculateScores } from "@/lib/scoring";
-import type { EventTracker } from "@/server/types/contracts";
+import type { ScoringInput } from "@/lib/scoring";
+import type { AssessmentScorer, EventTracker } from "@/server/types/contracts";
+
+type AssessmentPersistence = Pick<PrismaClient, "$transaction"> & {
+  assessment: Pick<PrismaClient["assessment"], "findFirst" | "create" | "findUnique" | "update">;
+  question: Pick<PrismaClient["question"], "findMany" | "count">;
+  choice: Pick<PrismaClient["choice"], "findUnique">;
+  response: Pick<PrismaClient["response"], "upsert" | "count">;
+  weeklyCheckin: Pick<PrismaClient["weeklyCheckin"], "create">;
+  actionPlan: Pick<PrismaClient["actionPlan"], "count">;
+};
 
 type AssessmentServiceDependencies = {
-  prismaClient: PrismaClient;
+  prismaClient: AssessmentPersistence;
   tracker: EventTracker;
   logger: Logger;
+  scorer: AssessmentScorer;
   idGenerator?: () => string;
   now?: () => Date;
 };
@@ -57,9 +67,10 @@ export type WeeklyCheckinInput = {
  * Encapsulates assessment lifecycle workflows and persistence interactions.
  */
 export class AssessmentService {
-  private readonly prismaClient: PrismaClient;
+  private readonly prismaClient: AssessmentPersistence;
   private readonly tracker: EventTracker;
   private readonly logger: Logger;
+  private readonly scorer: AssessmentScorer;
   private readonly idGenerator: () => string;
   private readonly now: () => Date;
 
@@ -67,6 +78,7 @@ export class AssessmentService {
     this.prismaClient = dependencies.prismaClient;
     this.tracker = dependencies.tracker;
     this.logger = dependencies.logger;
+    this.scorer = dependencies.scorer;
     this.idGenerator = dependencies.idGenerator ?? randomUUID;
     this.now = dependencies.now ?? (() => new Date());
   }
@@ -220,22 +232,7 @@ export class AssessmentService {
    * Finalizes assessment, computes scores, and snapshots result/action plan in one transaction.
    */
   async completeAssessment(input: CompleteAssessmentInput) {
-    const assessment = await this.prismaClient.assessment.findUnique({
-      where: { id: input.assessmentId },
-      include: {
-        responses: {
-          include: {
-            question: {
-              select: { axis: true },
-            },
-            choice: {
-              select: { value: true },
-            },
-          },
-        },
-        resultSnapshot: true,
-      },
-    });
+    const assessment = await this.loadAssessmentCompletionState(input.assessmentId);
 
     if (!assessment) {
       throw new NotFoundError("진단 정보를 찾을 수 없습니다.", {
@@ -258,7 +255,7 @@ export class AssessmentService {
       });
     }
 
-    const scoring = calculateScores(assessment.responses);
+    const scoring = this.scorer.calculate(assessment.responses as ScoringInput[]);
 
     const result = await this.prismaClient.$transaction(async (tx) => {
       await tx.assessment.update({
@@ -377,5 +374,27 @@ export class AssessmentService {
       ok: true,
       completionRate,
     };
+  }
+
+  /**
+   * Loads assessment completion state with responses and existing snapshot metadata.
+   */
+  private async loadAssessmentCompletionState(assessmentId: string) {
+    return this.prismaClient.assessment.findUnique({
+      where: { id: assessmentId },
+      include: {
+        responses: {
+          include: {
+            question: {
+              select: { axis: true },
+            },
+            choice: {
+              select: { value: true },
+            },
+          },
+        },
+        resultSnapshot: true,
+      },
+    });
   }
 }

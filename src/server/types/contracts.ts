@@ -1,4 +1,5 @@
 import { PaymentProvider, type Price } from "@prisma/client";
+import type { ScoringInput, ScoringOutput } from "@/lib/scoring";
 
 /**
  * Normalized tracking payload contract.
@@ -43,4 +44,11 @@ export interface PaymentGateway {
  */
 export interface AppUrlResolver {
   getAppUrl(): string;
+}
+
+/**
+ * Assessment scoring abstraction used to decouple domain scoring logic from service orchestration.
+ */
+export interface AssessmentScorer {
+  calculate(responses: ScoringInput[]): ScoringOutput;
 }
