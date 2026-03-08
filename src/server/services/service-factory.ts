@@ -1,7 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
+import { EnvPaymentGateway } from "@/lib/payment/providers";
 import { ActionPlanService } from "@/server/services/action-plan-service";
 import { AssessmentService } from "@/server/services/assessment-service";
+import { EnvAppUrlResolver } from "@/server/services/app-url-resolver";
 import { CheckoutService } from "@/server/services/checkout-service";
 import { eventTracker } from "@/server/services/event-tracker";
 import { ExperimentService } from "@/server/services/experiment-service";
@@ -23,6 +25,8 @@ export const services = {
     prismaClient: prisma,
     tracker: eventTracker,
     logger,
+    paymentGateway: new EnvPaymentGateway(),
+    appUrlResolver: new EnvAppUrlResolver(),
   }),
   report: new ReportService({
     prismaClient: prisma,

@@ -1,3 +1,5 @@
+import { PaymentProvider, type Price } from "@prisma/client";
+
 /**
  * Normalized tracking payload contract.
  */
@@ -13,4 +15,32 @@ export type TrackEventInput = {
  */
 export interface EventTracker {
   track(input: TrackEventInput): Promise<void>;
+}
+
+export type PaymentCheckoutInput = {
+  assessmentId: string;
+  customerEmail?: string;
+  price: Price;
+  successUrl: string;
+  cancelUrl: string;
+};
+
+export type PaymentCheckoutResult = {
+  externalId: string;
+  checkoutUrl: string;
+};
+
+/**
+ * Payment gateway abstraction consumed by checkout orchestration.
+ */
+export interface PaymentGateway {
+  getProvider(): PaymentProvider;
+  createCheckout(input: PaymentCheckoutInput): Promise<PaymentCheckoutResult>;
+}
+
+/**
+ * Application URL resolver abstraction used for redirect construction.
+ */
+export interface AppUrlResolver {
+  getAppUrl(): string;
 }

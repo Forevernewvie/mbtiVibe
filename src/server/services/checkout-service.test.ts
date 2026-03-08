@@ -3,22 +3,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { BadRequestError } from "@/lib/errors";
 import { CheckoutService } from "@/server/services/checkout-service";
+import type { AppUrlResolver, PaymentGateway } from "@/server/types/contracts";
 
 const createCheckoutMock = vi.fn();
-const resolvePaymentProviderMock = vi.fn();
-
-vi.mock("@/lib/env", () => ({
-  env: {
-    APP_URL: "http://localhost:3000",
-  },
-}));
-
-vi.mock("@/lib/payment/providers", () => ({
-  getPaymentClient: () => ({
-    createCheckout: createCheckoutMock,
-  }),
-  resolvePaymentProvider: () => resolvePaymentProviderMock(),
-}));
+const getProviderMock = vi.fn();
 
 type TransactionClientMock = {
   payment: {
@@ -84,10 +72,21 @@ function buildServiceContext() {
     error: vi.fn(),
   };
 
+  const paymentGateway: PaymentGateway = {
+    getProvider: getProviderMock,
+    createCheckout: createCheckoutMock,
+  };
+
+  const appUrlResolver: AppUrlResolver = {
+    getAppUrl: () => "http://localhost:3000",
+  };
+
   const service = new CheckoutService({
     prismaClient: prismaClient as unknown as PrismaClient,
     tracker,
     logger,
+    paymentGateway,
+    appUrlResolver,
     now: () => new Date("2026-03-04T00:00:00.000Z"),
   });
 
@@ -103,7 +102,7 @@ function buildServiceContext() {
 describe("CheckoutService", () => {
   beforeEach(() => {
     createCheckoutMock.mockReset();
-    resolvePaymentProviderMock.mockReset();
+    getProviderMock.mockReset();
   });
 
   /**
@@ -122,7 +121,7 @@ describe("CheckoutService", () => {
       product: { isActive: true },
     });
 
-    resolvePaymentProviderMock.mockReturnValue(PaymentProvider.MANUAL);
+    getProviderMock.mockReturnValue(PaymentProvider.MANUAL);
     createCheckoutMock.mockResolvedValue({
       externalId: "manual-checkout-1",
       checkoutUrl: "http://localhost:3000/results/assessment-1?demoPaid=1",
@@ -159,7 +158,7 @@ describe("CheckoutService", () => {
       product: { isActive: true },
     });
 
-    resolvePaymentProviderMock.mockReturnValue(PaymentProvider.MANUAL);
+    getProviderMock.mockReturnValue(PaymentProvider.MANUAL);
     createCheckoutMock.mockResolvedValue({
       externalId: "manual-checkout-2",
       checkoutUrl: "http://localhost:3000/results/assessment-2?demoPaid=1",
