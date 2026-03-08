@@ -54,6 +54,8 @@ export const APP_POLICY = {
   support: {
     maxSubjectLength: 120,
     maxMessageLength: 3_000,
+    acknowledgementSubject: "[VibeWeb] 문의가 접수되었습니다",
+    acknowledgementMessage: "문의가 접수되었습니다. 티켓 번호",
   },
   analytics: {
     funnelDefaultWindowDays: 7,

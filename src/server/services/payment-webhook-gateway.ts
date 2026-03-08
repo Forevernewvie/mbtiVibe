@@ -6,7 +6,6 @@ import {
 } from "@prisma/client";
 
 import { BadRequestError } from "@/lib/errors";
-import { env } from "@/lib/env";
 import type {
   PaymentWebhookGateway,
   PaymentWebhookParseResult,
@@ -33,7 +32,7 @@ const STRIPE_PAYMENT_EVENT_STATUS: Partial<Record<Stripe.Event.Type, PaymentStat
 /**
  * Parses the manual provider webhook payload into normalized update instructions.
  */
-class ManualPaymentWebhookGateway implements PaymentWebhookGateway {
+export class ManualPaymentWebhookGateway implements PaymentWebhookGateway {
   /**
    * Validates JSON payload and maps it to a payment status transition.
    */
@@ -88,7 +87,7 @@ class ManualPaymentWebhookGateway implements PaymentWebhookGateway {
 /**
  * Parses Stripe webhook requests and converts them into normalized updates.
  */
-class StripePaymentWebhookGateway implements PaymentWebhookGateway {
+export class StripePaymentWebhookGateway implements PaymentWebhookGateway {
   private readonly stripe: Stripe;
   private readonly webhookSecret: string;
 
@@ -207,34 +206,34 @@ class StripePaymentWebhookGateway implements PaymentWebhookGateway {
   }
 }
 
-/**
- * Environment-backed webhook gateway that selects the active provider adapter.
- */
-export class EnvPaymentWebhookGateway implements PaymentWebhookGateway {
-  private readonly gateway: PaymentWebhookGateway;
+type PaymentWebhookGatewayStrategies = Partial<Record<PaymentProvider, PaymentWebhookGateway>>;
 
-  constructor(gateway: PaymentWebhookGateway = EnvPaymentWebhookGateway.resolveGateway()) {
-    this.gateway = gateway;
-  }
+/**
+ * Provider strategy registry for payment webhook parsing.
+ */
+export class PaymentWebhookGatewayRegistry implements PaymentWebhookGateway {
+  constructor(
+    private readonly provider: PaymentProvider,
+    private readonly strategies: PaymentWebhookGatewayStrategies,
+  ) {}
 
   /**
-   * Delegates parsing to the provider-specific webhook gateway.
+   * Delegates parsing to the configured provider strategy.
    */
   async parse(request: Request): Promise<PaymentWebhookParseResult> {
-    return this.gateway.parse(request);
+    return this.resolveGateway().parse(request);
   }
 
   /**
-   * Resolves provider-specific webhook gateway from validated environment config.
+   * Resolves the provider-specific webhook gateway from the registry.
    */
-  private static resolveGateway(): PaymentWebhookGateway {
-    if (env.PAYMENT_PROVIDER === "stripe") {
-      return new StripePaymentWebhookGateway(
-        env.STRIPE_SECRET_KEY!,
-        env.STRIPE_WEBHOOK_SECRET!,
-      );
+  private resolveGateway(): PaymentWebhookGateway {
+    const gateway = this.strategies[this.provider];
+
+    if (!gateway) {
+      throw new Error(`Unsupported payment webhook provider: ${this.provider}`);
     }
 
-    return new ManualPaymentWebhookGateway();
+    return gateway;
   }
 }

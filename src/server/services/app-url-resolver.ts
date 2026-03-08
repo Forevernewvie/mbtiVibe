@@ -1,14 +1,15 @@
-import { env } from "@/lib/env";
 import type { AppUrlResolver } from "@/server/types/contracts";
 
 /**
- * Environment-backed application URL resolver for runtime redirects.
+ * Static application URL resolver for runtime redirects.
  */
-export class EnvAppUrlResolver implements AppUrlResolver {
+export class StaticAppUrlResolver implements AppUrlResolver {
+  constructor(private readonly appUrl: string) {}
+
   /**
-   * Returns normalized application base URL from validated environment config.
+   * Returns normalized application base URL from runtime configuration.
    */
   getAppUrl(): string {
-    return env.APP_URL;
+    return this.appUrl;
   }
 }

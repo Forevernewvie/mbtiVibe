@@ -1,23 +1,20 @@
-import { Resend } from "resend";
-
-import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
-import { EnvPaymentGateway } from "@/lib/payment/providers";
 import { prisma } from "@/lib/prisma";
 import { ActionPlanService } from "@/server/services/action-plan-service";
-import { StaticAdminAccessPolicy } from "@/server/services/admin-access-policy";
 import { DefaultAssessmentScorer } from "@/server/services/assessment-scorer";
 import { AssessmentService } from "@/server/services/assessment-service";
-import { EnvAppUrlResolver } from "@/server/services/app-url-resolver";
 import { CheckoutService } from "@/server/services/checkout-service";
 import { eventTracker } from "@/server/services/event-tracker";
 import { ExperimentService } from "@/server/services/experiment-service";
-import { EnvPaymentWebhookGateway } from "@/server/services/payment-webhook-gateway";
 import { MetricsService } from "@/server/services/metrics-service";
 import { PaymentWebhookService } from "@/server/services/payment-webhook-service";
+import { PaymentWebhookTransitionService } from "@/server/services/payment-webhook-transition-service";
 import { ReportService } from "@/server/services/report-service";
+import {
+  createServerServiceAdapters,
+  type ServerServiceAdapters,
+} from "@/server/services/service-runtime-adapters";
 import { SupportService } from "@/server/services/support-service";
-import { ResendSupportEmailSender } from "@/server/services/support-email-sender";
 
 /**
  * Dependency bag for composing server-side application services.
@@ -26,7 +23,10 @@ type ServerServiceDependencies = {
   prismaClient?: typeof prisma;
   tracker?: typeof eventTracker;
   loggerInstance?: typeof logger;
+  adapters?: ServerServiceAdapters;
 };
+
+const defaultAdapters = createServerServiceAdapters();
 
 /**
  * Builds a fresh set of server services from explicit infrastructure dependencies.
@@ -37,11 +37,12 @@ export function createServerServices(
   const prismaClient = dependencies.prismaClient ?? prisma;
   const tracker = dependencies.tracker ?? eventTracker;
   const loggerInstance = dependencies.loggerInstance ?? logger;
-  const adminAccessPolicy = new StaticAdminAccessPolicy(env.ADMIN_API_TOKEN);
-  const supportEmailSender =
-    env.RESEND_API_KEY && env.RESEND_FROM_EMAIL
-      ? new ResendSupportEmailSender(new Resend(env.RESEND_API_KEY), env.RESEND_FROM_EMAIL)
-      : null;
+  const adapters = dependencies.adapters ?? defaultAdapters;
+  const webhookTransitionApplier = new PaymentWebhookTransitionService({
+    prismaClient,
+    tracker,
+    logger: loggerInstance,
+  });
 
   return {
     assessment: new AssessmentService({
@@ -54,19 +55,19 @@ export function createServerServices(
       prismaClient,
       tracker,
       logger: loggerInstance,
-      paymentGateway: new EnvPaymentGateway(),
-      appUrlResolver: new EnvAppUrlResolver(),
+      paymentGateway: adapters.paymentGateway,
+      appUrlResolver: adapters.appUrlResolver,
     }),
     report: new ReportService({
       prismaClient,
     }),
     experiment: new ExperimentService({
       prismaClient,
-      adminAccessPolicy,
+      adminAccessPolicy: adapters.adminAccessPolicy,
     }),
     metrics: new MetricsService({
       prismaClient,
-      adminAccessPolicy,
+      adminAccessPolicy: adapters.adminAccessPolicy,
     }),
     actionPlan: new ActionPlanService({
       prismaClient,
@@ -74,13 +75,12 @@ export function createServerServices(
     support: new SupportService({
       prismaClient,
       logger: loggerInstance,
-      emailSender: supportEmailSender,
+      emailSender: adapters.supportEmailSender,
     }),
     webhook: new PaymentWebhookService({
-      prismaClient,
-      tracker,
       logger: loggerInstance,
-      webhookGateway: new EnvPaymentWebhookGateway(),
+      webhookGateway: adapters.webhookGateway,
+      transitionApplier: webhookTransitionApplier,
     }),
   };
 }

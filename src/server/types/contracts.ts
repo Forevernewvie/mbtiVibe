@@ -78,6 +78,18 @@ export type SupportTicketAcknowledgementInput = {
   ticketId: string;
 };
 
+export type SupportAcknowledgementMessage = {
+  subject: string;
+  html: string;
+};
+
+/**
+ * Support acknowledgement template contract used by mail senders.
+ */
+export interface SupportAcknowledgementTemplateBuilder {
+  build(input: SupportTicketAcknowledgementInput): SupportAcknowledgementMessage;
+}
+
 /**
  * Support acknowledgement sender abstraction used by ticket workflows.
  */
@@ -119,6 +131,27 @@ export type PaymentWebhookParseResult = {
  */
 export interface PaymentWebhookGateway {
   parse(request: Request): Promise<PaymentWebhookParseResult>;
+}
+
+export type PaymentTransitionResult = {
+  found: boolean;
+  changed: boolean;
+  paymentId?: string;
+  provider?: PaymentProvider;
+  previousStatus?: PaymentStatus;
+  currentStatus?: PaymentStatus;
+};
+
+export type SubscriptionTransitionResult = {
+  updatedCount: number;
+};
+
+/**
+ * Payment status transition contract used by webhook orchestration.
+ */
+export interface PaymentWebhookTransitionApplier {
+  applyPaymentStatus(input: PaymentStatusUpdate): Promise<PaymentTransitionResult>;
+  applySubscriptionStatus(input: SubscriptionStatusUpdate): Promise<SubscriptionTransitionResult>;
 }
 
 /**
