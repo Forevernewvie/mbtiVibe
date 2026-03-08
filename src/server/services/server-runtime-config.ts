@@ -1,8 +1,39 @@
-import { env } from "@/lib/env";
+const DEFAULT_POSTHOG_HOST = "https://app.posthog.com";
+
+export type RuntimeEnvironment = "development" | "test" | "production";
+export type RuntimePaymentProvider = "manual" | "stripe" | "toss" | "portone";
+export type PrismaLogLevel = "error" | "warn";
+
+export type ServerRuntimeInput = {
+  nodeEnv: RuntimeEnvironment;
+  databaseUrl: string;
+  appUrl: string;
+  paymentProvider: RuntimePaymentProvider;
+  stripeSecretKey?: string;
+  stripeWebhookSecret?: string;
+  tossCheckoutUrl?: string;
+  portoneCheckoutUrl?: string;
+  posthogKey?: string;
+  posthogHost?: string;
+  adminApiToken?: string;
+  resendApiKey?: string;
+  resendFromEmail?: string;
+};
+
+export type DatabaseRuntimeConfig = {
+  connectionString: string;
+  logLevels: PrismaLogLevel[];
+  reuseGlobalClient: boolean;
+};
+
+export type AnalyticsRuntimeConfig = {
+  posthogKey?: string;
+  posthogHost: string;
+};
 
 export type ServerRuntimeConfig = {
   appUrl: string;
-  paymentProvider: "manual" | "stripe" | "toss" | "portone";
+  paymentProvider: RuntimePaymentProvider;
   stripeSecretKey?: string;
   stripeWebhookSecret?: string;
   tossCheckoutUrl?: string;
@@ -10,21 +41,48 @@ export type ServerRuntimeConfig = {
   adminApiToken?: string;
   resendApiKey?: string;
   resendFromEmail?: string;
+  database: DatabaseRuntimeConfig;
+  analytics: AnalyticsRuntimeConfig;
 };
 
 /**
- * Reads validated environment values into an explicit runtime config object.
+ * Maps validated process input into an explicit runtime configuration object.
  */
-export function getServerRuntimeConfig(): ServerRuntimeConfig {
+export function mapServerRuntimeConfig(input: ServerRuntimeInput): ServerRuntimeConfig {
   return {
-    appUrl: env.APP_URL,
-    paymentProvider: env.PAYMENT_PROVIDER,
-    stripeSecretKey: env.STRIPE_SECRET_KEY,
-    stripeWebhookSecret: env.STRIPE_WEBHOOK_SECRET,
-    tossCheckoutUrl: env.TOSS_TEST_CHECKOUT_URL,
-    portoneCheckoutUrl: env.PORTONE_TEST_CHECKOUT_URL,
-    adminApiToken: env.ADMIN_API_TOKEN,
-    resendApiKey: env.RESEND_API_KEY,
-    resendFromEmail: env.RESEND_FROM_EMAIL,
+    appUrl: input.appUrl,
+    paymentProvider: input.paymentProvider,
+    stripeSecretKey: input.stripeSecretKey,
+    stripeWebhookSecret: input.stripeWebhookSecret,
+    tossCheckoutUrl: input.tossCheckoutUrl,
+    portoneCheckoutUrl: input.portoneCheckoutUrl,
+    adminApiToken: input.adminApiToken,
+    resendApiKey: input.resendApiKey,
+    resendFromEmail: input.resendFromEmail,
+    database: createDatabaseRuntimeConfig(input),
+    analytics: createAnalyticsRuntimeConfig(input),
+  };
+}
+
+/**
+ * Maps runtime database settings into a Prisma-friendly configuration object.
+ */
+export function createDatabaseRuntimeConfig(input: Pick<ServerRuntimeInput, "databaseUrl" | "nodeEnv">): DatabaseRuntimeConfig {
+  return {
+    connectionString: input.databaseUrl,
+    logLevels: input.nodeEnv === "development" ? ["error", "warn"] : ["error"],
+    reuseGlobalClient: input.nodeEnv !== "production",
+  };
+}
+
+/**
+ * Maps analytics-related runtime settings into a transport-friendly configuration object.
+ */
+export function createAnalyticsRuntimeConfig(
+  input: Pick<ServerRuntimeInput, "posthogKey" | "posthogHost">,
+): AnalyticsRuntimeConfig {
+  return {
+    posthogKey: input.posthogKey,
+    posthogHost: input.posthogHost ?? DEFAULT_POSTHOG_HOST,
   };
 }

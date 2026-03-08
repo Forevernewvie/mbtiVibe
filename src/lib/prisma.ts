@@ -1,29 +1,32 @@
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 
-import { env } from "@/lib/env";
+import type { DatabaseRuntimeConfig } from "@/server/services/server-runtime-config";
+import { getServerRuntimeConfig } from "@/server/services/server-runtime-env";
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
+const runtimeConfig = getServerRuntimeConfig();
+
 /**
  * Creates Prisma client with PostgreSQL driver adapter.
  */
-function createPrismaClient() {
-  const adapter = new PrismaPg({ connectionString: env.DATABASE_URL });
+function createPrismaClient(configuration: DatabaseRuntimeConfig) {
+  const adapter = new PrismaPg({ connectionString: configuration.connectionString });
 
   return new PrismaClient({
     adapter,
-    log: env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
+    log: configuration.logLevels,
   });
 }
 
 /**
  * Shared Prisma client instance reused across HMR cycles.
  */
-export const prisma = globalForPrisma.prisma ?? createPrismaClient();
+export const prisma = globalForPrisma.prisma ?? createPrismaClient(runtimeConfig.database);
 
-if (env.NODE_ENV !== "production") {
+if (runtimeConfig.database.reuseGlobalClient) {
   globalForPrisma.prisma = prisma;
 }

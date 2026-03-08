@@ -77,7 +77,7 @@ async function resolveAdminToken(adminToken?: string | null): Promise<string | n
     return adminToken;
   }
 
-  const { getServerRuntimeConfig } = await import("@/server/services/server-runtime-config");
+  const { getServerRuntimeConfig } = await import("@/server/services/server-runtime-env");
   return getServerRuntimeConfig().adminApiToken ?? null;
 }
 
