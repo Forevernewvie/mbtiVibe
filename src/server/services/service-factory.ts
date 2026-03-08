@@ -4,7 +4,6 @@ import { ActionPlanService } from "@/server/services/action-plan-service";
 import { DefaultAssessmentScorer } from "@/server/services/assessment-scorer";
 import { AssessmentService } from "@/server/services/assessment-service";
 import { CheckoutService } from "@/server/services/checkout-service";
-import { eventTracker } from "@/server/services/event-tracker";
 import { ExperimentService } from "@/server/services/experiment-service";
 import { MetricsService } from "@/server/services/metrics-service";
 import { PaymentWebhookService } from "@/server/services/payment-webhook-service";
@@ -15,29 +14,33 @@ import {
   type ServerServiceAdapters,
 } from "@/server/services/service-runtime-adapters";
 import { SupportService } from "@/server/services/support-service";
+import type { EventTracker } from "@/server/types/contracts";
 
 /**
  * Dependency bag for composing server-side application services.
  */
 type ServerServiceDependencies = {
   prismaClient?: typeof prisma;
-  tracker?: typeof eventTracker;
+  tracker?: EventTracker;
   loggerInstance?: typeof logger;
   adapters?: ServerServiceAdapters;
 };
 
-const defaultAdapters = createServerServiceAdapters();
-
 /**
- * Builds a fresh set of server services from explicit infrastructure dependencies.
+ * Composes application services from already-built infrastructure adapters and shared utilities.
  */
 export function createServerServices(
   dependencies: ServerServiceDependencies = {},
 ) {
   const prismaClient = dependencies.prismaClient ?? prisma;
-  const tracker = dependencies.tracker ?? eventTracker;
   const loggerInstance = dependencies.loggerInstance ?? logger;
-  const adapters = dependencies.adapters ?? defaultAdapters;
+  const adapters =
+    dependencies.adapters ??
+    createServerServiceAdapters({
+      prismaClient,
+      logger: loggerInstance,
+    });
+  const tracker = dependencies.tracker ?? adapters.eventTracker;
   const webhookTransitionApplier = new PaymentWebhookTransitionService({
     prismaClient,
     tracker,
