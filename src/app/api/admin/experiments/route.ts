@@ -1,7 +1,7 @@
 import { parseJsonBody, validateSchema } from "@/lib/api";
 import { toErrorResponse } from "@/lib/errors";
 import { experimentSchema } from "@/lib/schemas";
-import { services } from "@/server/services/service-factory";
+import { createServerServices } from "@/server/services/service-factory";
 import { NextResponse } from "next/server";
 
 /**
@@ -9,6 +9,7 @@ import { NextResponse } from "next/server";
  */
 export async function GET() {
   try {
+    const services = createServerServices();
     const experiments = await services.experiment.list();
     return NextResponse.json({ experiments });
   } catch (error) {
@@ -23,6 +24,7 @@ export async function POST(request: Request) {
   try {
     const jsonBody = await parseJsonBody(request, {});
     const payload = validateSchema(experimentSchema, jsonBody);
+    const services = createServerServices();
 
     const experiment = await services.experiment.upsert({
       ...payload,

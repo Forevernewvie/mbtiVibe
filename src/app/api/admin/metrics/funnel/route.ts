@@ -1,5 +1,5 @@
 import { toErrorResponse } from "@/lib/errors";
-import { services } from "@/server/services/service-factory";
+import { createServerServices } from "@/server/services/service-factory";
 import { NextResponse } from "next/server";
 
 /**
@@ -7,6 +7,7 @@ import { NextResponse } from "next/server";
  */
 export async function GET(request: Request) {
   try {
+    const services = createServerServices();
     const url = new URL(request.url);
     const daysParam = url.searchParams.get("days");
     const parsedDays = daysParam === null ? undefined : Number(daysParam);

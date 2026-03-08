@@ -1,11 +1,15 @@
-import { PaymentStatus, PrismaClient } from "@prisma/client";
+import { PaymentStatus, type PrismaClient } from "@prisma/client";
 
 import { APP_POLICY } from "@/config/app-policy";
 import { NotFoundError, PaymentRequiredError } from "@/lib/errors";
 import { buildReportPdf } from "@/lib/report";
 
 type ReportServiceDependencies = {
-  prismaClient: PrismaClient;
+  prismaClient: ReportPersistence;
+};
+
+type ReportPersistence = {
+  assessment: Pick<PrismaClient["assessment"], "findUnique">;
 };
 
 type AxisScorePayload = Array<{ label: string; score: number }>;
@@ -15,7 +19,7 @@ type ActionPayload = Array<{ day: number; title: string; details: string }>;
  * Handles paid report access validation and PDF content assembly.
  */
 export class ReportService {
-  private readonly prismaClient: PrismaClient;
+  private readonly prismaClient: ReportPersistence;
 
   constructor(dependencies: ReportServiceDependencies) {
     this.prismaClient = dependencies.prismaClient;

@@ -2,7 +2,7 @@ import { APP_POLICY } from "@/config/app-policy";
 import { ExperimentAdminForm } from "@/components/experiment-admin-form";
 import { env } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
-import { services } from "@/server/services/service-factory";
+import { createServerServices } from "@/server/services/service-factory";
 import type { FunnelMetricsOutput } from "@/server/services/metrics-service";
 
 export const dynamic = "force-dynamic";
@@ -32,6 +32,7 @@ async function loadFunnelDashboardState(): Promise<FunnelDashboardState> {
   }
 
   try {
+    const services = createServerServices();
     const metrics = await services.metrics.getFunnelMetrics(
       APP_POLICY.analytics.funnelDefaultWindowDays,
       env.ADMIN_API_TOKEN,

@@ -15,6 +15,7 @@ import type {
   EventTracker,
   PaymentCheckoutResult,
   PaymentGateway,
+  PaymentPriceSnapshot,
 } from "@/server/types/contracts";
 
 type CheckoutPersistence = Pick<PrismaClient, "$transaction"> & {
@@ -141,7 +142,28 @@ export class CheckoutService {
 
     return {
       assessment,
-      price,
+      price: this.toPaymentPriceSnapshot(price),
+    };
+  }
+
+  /**
+   * Converts persistence-backed price records into immutable checkout price snapshots.
+   */
+  private toPaymentPriceSnapshot(price: {
+    id: string;
+    code: string;
+    amount: number;
+    currency: string;
+    billingPeriod: BillingPeriod;
+    externalId?: string | null;
+  }): PaymentPriceSnapshot {
+    return {
+      id: price.id,
+      code: price.code,
+      amount: price.amount,
+      currency: price.currency,
+      billingPeriod: price.billingPeriod,
+      externalId: price.externalId,
     };
   }
 
@@ -168,12 +190,7 @@ export class CheckoutService {
     assessment: {
       userId: string | null;
     };
-    price: {
-      id: string;
-      amount: number;
-      currency: string;
-      billingPeriod: BillingPeriod;
-    };
+    price: PaymentPriceSnapshot;
     checkout: PaymentCheckoutResult;
     provider: PaymentProvider;
     isManual: boolean;
