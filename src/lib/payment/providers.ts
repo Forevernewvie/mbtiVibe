@@ -2,39 +2,28 @@ import { randomUUID } from "node:crypto";
 
 import Stripe from "stripe";
 
-import { BillingPeriod, PaymentProvider, type Price } from "@prisma/client";
+import { BillingPeriod, PaymentProvider } from "@prisma/client";
 import { env } from "@/lib/env";
+import type {
+  PaymentCheckoutInput,
+  PaymentCheckoutResult,
+  PaymentGateway,
+} from "@/server/types/contracts";
 
 const STRIPE_PRICE_PREFIX = "price_";
 
-export type CheckoutInput = {
-  assessmentId: string;
-  customerEmail?: string;
-  price: Price;
-  successUrl: string;
-  cancelUrl: string;
+type PaymentClient = {
+  createCheckout(input: PaymentCheckoutInput): Promise<PaymentCheckoutResult>;
 };
-
-export type CheckoutResult = {
-  externalId: string;
-  checkoutUrl: string;
-};
-
-/**
- * Payment gateway abstraction to support multiple providers.
- */
-export interface PaymentClient {
-  createCheckout(input: CheckoutInput): Promise<CheckoutResult>;
-}
 
 /**
  * Local/manual payment client used for development and test flows.
  */
-class ManualPaymentClient implements PaymentClient {
+class ManualPaymentClient {
   /**
    * Creates synthetic checkout URL and marks demo paid path.
    */
-  async createCheckout(input: CheckoutInput) {
+  async createCheckout(input: PaymentCheckoutInput): Promise<PaymentCheckoutResult> {
     return {
       externalId: `manual_${randomUUID()}`,
       checkoutUrl: `${input.successUrl}${input.successUrl.includes("?") ? "&" : "?"}demoPaid=1`,
@@ -45,7 +34,7 @@ class ManualPaymentClient implements PaymentClient {
 /**
  * Stripe payment client implementation.
  */
-class StripePaymentClient implements PaymentClient {
+class StripePaymentClient {
   private readonly stripe: Stripe;
 
   constructor(secretKey: string) {
@@ -57,7 +46,7 @@ class StripePaymentClient implements PaymentClient {
   /**
    * Creates Stripe checkout session for one-time or recurring billing.
    */
-  async createCheckout(input: CheckoutInput) {
+  async createCheckout(input: PaymentCheckoutInput): Promise<PaymentCheckoutResult> {
     const mode =
       input.price.billingPeriod === BillingPeriod.ONE_TIME ? "payment" : "subscription";
 
@@ -115,13 +104,13 @@ class StripePaymentClient implements PaymentClient {
 /**
  * Redirect-style provider for gateways handled on third-party checkout pages.
  */
-class RedirectGatewayClient implements PaymentClient {
+class RedirectGatewayClient {
   constructor(private readonly baseUrl: string, private readonly providerPrefix: string) {}
 
   /**
    * Builds redirect URL carrying transaction context in query parameters.
    */
-  async createCheckout(input: CheckoutInput) {
+  async createCheckout(input: PaymentCheckoutInput): Promise<PaymentCheckoutResult> {
     const externalId = `${this.providerPrefix}_${randomUUID()}`;
     const checkoutUrl = new URL(this.baseUrl);
 
@@ -179,4 +168,24 @@ export function getPaymentClient(): PaymentClient {
   }
 
   return new ManualPaymentClient();
+}
+
+/**
+ * Environment-backed payment gateway used by production checkout service wiring.
+ */
+export class EnvPaymentGateway implements PaymentGateway {
+  /**
+   * Returns active provider selected by environment variables.
+   */
+  getProvider(): PaymentProvider {
+    return resolvePaymentProvider();
+  }
+
+  /**
+   * Delegates checkout creation to the currently configured provider client.
+   */
+  async createCheckout(input: PaymentCheckoutInput): Promise<PaymentCheckoutResult> {
+    const paymentClient = getPaymentClient();
+    return paymentClient.createCheckout(input);
+  }
 }
