@@ -3,7 +3,7 @@ import { Axis } from "@prisma/client";
 import { APP_POLICY } from "@/config/app-policy";
 import { AXIS_META } from "@/lib/constants";
 
-type ScoringInput = {
+export type ScoringInput = {
   question: { axis: Axis };
   choice: { value: number };
 };
