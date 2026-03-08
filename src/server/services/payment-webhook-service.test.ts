@@ -2,16 +2,12 @@ import { PaymentProvider, PaymentStatus, type PrismaClient } from "@prisma/clien
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { BadRequestError } from "@/lib/errors";
-import { EnvPaymentWebhookGateway } from "@/server/services/payment-webhook-gateway";
+import {
+  ManualPaymentWebhookGateway,
+  PaymentWebhookGatewayRegistry,
+} from "@/server/services/payment-webhook-gateway";
 import { PaymentWebhookService } from "@/server/services/payment-webhook-service";
-
-vi.mock("@/lib/env", () => ({
-  env: {
-    PAYMENT_PROVIDER: "manual",
-    STRIPE_SECRET_KEY: undefined,
-    STRIPE_WEBHOOK_SECRET: undefined,
-  },
-}));
+import { PaymentWebhookTransitionService } from "@/server/services/payment-webhook-transition-service";
 
 type TransactionClientMock = {
   payment: {
@@ -52,10 +48,16 @@ function buildServiceContext() {
   };
 
   const service = new PaymentWebhookService({
-    prismaClient: prismaClient as unknown as PrismaClient,
-    tracker,
     logger,
-    webhookGateway: new EnvPaymentWebhookGateway(),
+    webhookGateway: new PaymentWebhookGatewayRegistry(PaymentProvider.MANUAL, {
+      [PaymentProvider.MANUAL]: new ManualPaymentWebhookGateway(),
+    }),
+    transitionApplier: new PaymentWebhookTransitionService({
+      prismaClient: prismaClient as unknown as PrismaClient,
+      tracker,
+      logger,
+      now: () => new Date("2026-03-04T00:00:00.000Z"),
+    }),
   });
 
   return {

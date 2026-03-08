@@ -3,7 +3,6 @@ import { randomUUID } from "node:crypto";
 import Stripe from "stripe";
 
 import { BillingPeriod, PaymentProvider } from "@prisma/client";
-import { env } from "@/lib/env";
 import type {
   PaymentCheckoutInput,
   PaymentCheckoutResult,
@@ -129,57 +128,69 @@ class RedirectGatewayClient {
 }
 
 /**
- * Resolves currently selected payment provider enum from environment.
+ * Runtime payment gateway configuration assembled by the composition root.
  */
-export function resolvePaymentProvider(): PaymentProvider {
-  if (env.PAYMENT_PROVIDER === "stripe") return PaymentProvider.STRIPE;
-  if (env.PAYMENT_PROVIDER === "toss") return PaymentProvider.TOSS;
-  if (env.PAYMENT_PROVIDER === "portone") return PaymentProvider.PORTONE;
+export type PaymentGatewayConfiguration = {
+  provider: PaymentProvider;
+  stripeSecretKey?: string;
+  tossCheckoutUrl?: string;
+  portoneCheckoutUrl?: string;
+};
+
+/**
+ * Resolves runtime payment provider enum from application config string.
+ */
+export function resolvePaymentProvider(
+  provider: "manual" | "stripe" | "toss" | "portone",
+): PaymentProvider {
+  if (provider === "stripe") return PaymentProvider.STRIPE;
+  if (provider === "toss") return PaymentProvider.TOSS;
+  if (provider === "portone") return PaymentProvider.PORTONE;
 
   return PaymentProvider.MANUAL;
 }
 
 /**
- * Returns provider client instance based on PAYMENT_PROVIDER env.
+ * Builds provider-specific checkout client from explicit runtime configuration.
  */
-export function getPaymentClient(): PaymentClient {
-  if (env.PAYMENT_PROVIDER === "stripe") {
-    if (!env.STRIPE_SECRET_KEY) {
+function createPaymentClient(configuration: PaymentGatewayConfiguration): PaymentClient {
+  if (configuration.provider === PaymentProvider.STRIPE) {
+    if (!configuration.stripeSecretKey) {
       throw new Error("PAYMENT_PROVIDER=stripe requires STRIPE_SECRET_KEY");
     }
 
-    return new StripePaymentClient(env.STRIPE_SECRET_KEY);
+    return new StripePaymentClient(configuration.stripeSecretKey);
   }
 
-  if (env.PAYMENT_PROVIDER === "toss") {
-    if (!env.TOSS_TEST_CHECKOUT_URL) {
+  if (configuration.provider === PaymentProvider.TOSS) {
+    if (!configuration.tossCheckoutUrl) {
       throw new Error("PAYMENT_PROVIDER=toss requires TOSS_TEST_CHECKOUT_URL");
     }
 
-    return new RedirectGatewayClient(env.TOSS_TEST_CHECKOUT_URL, "toss");
+    return new RedirectGatewayClient(configuration.tossCheckoutUrl, "toss");
   }
 
-  if (env.PAYMENT_PROVIDER === "portone") {
-    if (!env.PORTONE_TEST_CHECKOUT_URL) {
+  if (configuration.provider === PaymentProvider.PORTONE) {
+    if (!configuration.portoneCheckoutUrl) {
       throw new Error("PAYMENT_PROVIDER=portone requires PORTONE_TEST_CHECKOUT_URL");
     }
 
-    return new RedirectGatewayClient(env.PORTONE_TEST_CHECKOUT_URL, "portone");
+    return new RedirectGatewayClient(configuration.portoneCheckoutUrl, "portone");
   }
 
   return new ManualPaymentClient();
 }
 
 /**
- * Environment-backed payment gateway used by production checkout service wiring.
+ * Configured payment gateway used by composition-root service wiring.
  */
-export class EnvPaymentGateway implements PaymentGateway {
+export class ConfiguredPaymentGateway implements PaymentGateway {
   private readonly provider: PaymentProvider;
   private readonly paymentClient: PaymentClient;
 
   constructor(
-    provider: PaymentProvider = resolvePaymentProvider(),
-    paymentClient: PaymentClient = getPaymentClient(),
+    provider: PaymentProvider,
+    paymentClient: PaymentClient,
   ) {
     this.provider = provider;
     this.paymentClient = paymentClient;
@@ -198,4 +209,14 @@ export class EnvPaymentGateway implements PaymentGateway {
   async createCheckout(input: PaymentCheckoutInput): Promise<PaymentCheckoutResult> {
     return this.paymentClient.createCheckout(input);
   }
+}
+
+/**
+ * Creates configured payment gateway from explicit runtime configuration.
+ */
+export function createPaymentGateway(configuration: PaymentGatewayConfiguration): PaymentGateway {
+  return new ConfiguredPaymentGateway(
+    configuration.provider,
+    createPaymentClient(configuration),
+  );
 }
