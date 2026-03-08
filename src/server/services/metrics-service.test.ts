@@ -3,12 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { BadRequestError, UnauthorizedError } from "@/lib/errors";
 import { MetricsService } from "@/server/services/metrics-service";
-
-vi.mock("@/lib/env", () => ({
-  env: {
-    ADMIN_API_TOKEN: "admin-secret-token",
-  },
-}));
+import type { AdminAccessPolicy } from "@/server/types/contracts";
 
 type PrismaClientMock = {
   assessment: {
@@ -31,15 +26,20 @@ function buildServiceContext() {
       count: vi.fn(),
     },
   };
+  const adminAccessPolicy: AdminAccessPolicy = {
+    assertAuthorized: vi.fn(),
+  };
 
   const service = new MetricsService({
     prismaClient: prismaClient as unknown as PrismaClient,
+    adminAccessPolicy,
     now: () => new Date("2026-03-04T00:00:00.000Z"),
   });
 
   return {
     service,
     prismaClient,
+    adminAccessPolicy,
   };
 }
 
@@ -52,7 +52,11 @@ describe("MetricsService", () => {
    * Blocks unauthorized metric reads when admin token mismatches configured token.
    */
   it("throws unauthorized error for invalid token", async () => {
-    const { service } = buildServiceContext();
+    const { service, adminAccessPolicy } = buildServiceContext();
+
+    vi.mocked(adminAccessPolicy.assertAuthorized).mockImplementation(() => {
+      throw new UnauthorizedError("Unauthorized");
+    });
 
     await expect(service.getFunnelMetrics(undefined, "invalid-token")).rejects.toBeInstanceOf(
       UnauthorizedError,
@@ -63,7 +67,7 @@ describe("MetricsService", () => {
    * Returns computed conversion rates from funnel counts in the requested window.
    */
   it("computes funnel rates using count queries", async () => {
-    const { service, prismaClient } = buildServiceContext();
+    const { service, prismaClient, adminAccessPolicy } = buildServiceContext();
 
     prismaClient.assessment.count.mockResolvedValueOnce(100).mockResolvedValueOnce(40);
     prismaClient.payment.count.mockResolvedValueOnce(20).mockResolvedValueOnce(10);
@@ -83,6 +87,7 @@ describe("MetricsService", () => {
       paidRateFromCheckout: 0.5,
       paidRateFromStart: 0.1,
     });
+    expect(adminAccessPolicy.assertAuthorized).toHaveBeenCalledWith("admin-secret-token");
     expect(prismaClient.assessment.count).toHaveBeenCalledTimes(2);
     expect(prismaClient.payment.count).toHaveBeenCalledTimes(2);
   });

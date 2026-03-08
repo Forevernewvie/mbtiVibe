@@ -1,5 +1,5 @@
 import type Stripe from "stripe";
-import { PaymentProvider, PaymentStatus, SubscriptionStatus, type Price } from "@prisma/client";
+import { BillingPeriod, PaymentProvider, PaymentStatus, SubscriptionStatus } from "@prisma/client";
 import type { ScoringInput, ScoringOutput } from "@/lib/scoring";
 
 /**
@@ -19,10 +19,22 @@ export interface EventTracker {
   track(input: TrackEventInput): Promise<void>;
 }
 
+/**
+ * Immutable pricing snapshot passed into checkout providers without leaking ORM entities.
+ */
+export type PaymentPriceSnapshot = {
+  id: string;
+  code: string;
+  amount: number;
+  currency: string;
+  billingPeriod: BillingPeriod;
+  externalId?: string | null;
+};
+
 export type PaymentCheckoutInput = {
   assessmentId: string;
   customerEmail?: string;
-  price: Price;
+  price: PaymentPriceSnapshot;
   successUrl: string;
   cancelUrl: string;
 };
@@ -52,6 +64,25 @@ export interface AppUrlResolver {
  */
 export interface AssessmentScorer {
   calculate(responses: ScoringInput[]): ScoringOutput;
+}
+
+/**
+ * Admin authorization policy used by privileged services.
+ */
+export interface AdminAccessPolicy {
+  assertAuthorized(adminToken?: string | null): void;
+}
+
+export type SupportTicketAcknowledgementInput = {
+  recipientEmail: string;
+  ticketId: string;
+};
+
+/**
+ * Support acknowledgement sender abstraction used by ticket workflows.
+ */
+export interface SupportEmailSender {
+  sendAcknowledgement(input: SupportTicketAcknowledgementInput): Promise<void>;
 }
 
 export type PaymentWebhookSource = "manual_webhook" | "stripe_webhook";

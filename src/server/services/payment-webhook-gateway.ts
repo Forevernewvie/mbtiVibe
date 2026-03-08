@@ -211,17 +211,23 @@ class StripePaymentWebhookGateway implements PaymentWebhookGateway {
  * Environment-backed webhook gateway that selects the active provider adapter.
  */
 export class EnvPaymentWebhookGateway implements PaymentWebhookGateway {
+  private readonly gateway: PaymentWebhookGateway;
+
+  constructor(gateway: PaymentWebhookGateway = EnvPaymentWebhookGateway.resolveGateway()) {
+    this.gateway = gateway;
+  }
+
   /**
    * Delegates parsing to the provider-specific webhook gateway.
    */
   async parse(request: Request): Promise<PaymentWebhookParseResult> {
-    return this.resolveGateway().parse(request);
+    return this.gateway.parse(request);
   }
 
   /**
    * Resolves provider-specific webhook gateway from validated environment config.
    */
-  private resolveGateway(): PaymentWebhookGateway {
+  private static resolveGateway(): PaymentWebhookGateway {
     if (env.PAYMENT_PROVIDER === "stripe") {
       return new StripePaymentWebhookGateway(
         env.STRIPE_SECRET_KEY!,

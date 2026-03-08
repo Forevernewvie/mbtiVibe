@@ -1,11 +1,16 @@
-import { PrismaClient } from "@prisma/client";
-import { Resend } from "resend";
+import { type PrismaClient } from "@prisma/client";
 
-import { env } from "@/lib/env";
+import type { Logger } from "@/lib/logger";
+import type { SupportEmailSender } from "@/server/types/contracts";
 
 type SupportServiceDependencies = {
-  prismaClient: PrismaClient;
-  emailClient?: Resend | null;
+  prismaClient: SupportTicketPersistence;
+  logger: Logger;
+  emailSender?: SupportEmailSender | null;
+};
+
+type SupportTicketPersistence = {
+  supportTicket: Pick<PrismaClient["supportTicket"], "create">;
 };
 
 export type CreateSupportTicketInput = {
@@ -18,12 +23,14 @@ export type CreateSupportTicketInput = {
  * Handles support ticket creation and optional acknowledgment emails.
  */
 export class SupportService {
-  private readonly prismaClient: PrismaClient;
-  private readonly emailClient: Resend | null;
+  private readonly prismaClient: SupportTicketPersistence;
+  private readonly logger: Logger;
+  private readonly emailSender: SupportEmailSender | null;
 
   constructor(dependencies: SupportServiceDependencies) {
     this.prismaClient = dependencies.prismaClient;
-    this.emailClient = dependencies.emailClient ?? (env.RESEND_API_KEY ? new Resend(env.RESEND_API_KEY) : null);
+    this.logger = dependencies.logger;
+    this.emailSender = dependencies.emailSender ?? null;
   }
 
   /**
@@ -38,18 +45,33 @@ export class SupportService {
       },
     });
 
-    if (this.emailClient && env.RESEND_FROM_EMAIL) {
-      await this.emailClient.emails.send({
-        from: env.RESEND_FROM_EMAIL,
-        to: input.email,
-        subject: "[VibeWeb] 문의가 접수되었습니다",
-        html: `<p>문의가 접수되었습니다. 티켓 번호: <strong>${ticket.id}</strong></p>`,
-      });
-    }
+    await this.sendAcknowledgementSafely(ticket.id, input.email);
 
     return {
       ok: true,
       ticketId: ticket.id,
     };
+  }
+
+  /**
+   * Sends acknowledgement email without blocking ticket creation on provider failures.
+   */
+  private async sendAcknowledgementSafely(ticketId: string, recipientEmail: string): Promise<void> {
+    if (!this.emailSender) {
+      return;
+    }
+
+    try {
+      await this.emailSender.sendAcknowledgement({
+        recipientEmail,
+        ticketId,
+      });
+    } catch (error) {
+      this.logger.error("Support acknowledgement email failed", {
+        ticketId,
+        recipientEmail,
+        message: error instanceof Error ? error.message : "unknown",
+      });
+    }
   }
 }

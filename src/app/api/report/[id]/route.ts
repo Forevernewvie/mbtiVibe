@@ -1,7 +1,7 @@
 import { Buffer } from "node:buffer";
 
 import { toErrorResponse } from "@/lib/errors";
-import { services } from "@/server/services/service-factory";
+import { createServerServices } from "@/server/services/service-factory";
 import { NextResponse } from "next/server";
 
 /**
@@ -12,6 +12,7 @@ export async function GET(
   context: { params: Promise<{ id: string }> },
 ) {
   try {
+    const services = createServerServices();
     const { id } = await context.params;
     const url = new URL(request.url);
     const forceDemoPaid = url.searchParams.get("demoPaid") === "1";
